@@ -11,7 +11,7 @@ export function createApplication() {
   const catalog = new StationCatalog(config.stations);
   const radio = new RadioManager(config, logger);
   const settings = new JsonGuildSettingsRepository(undefined, logger);
-  const configPanel = createConfigPanelFeature(settings, radio);
+  const configPanel = createConfigPanelFeature(settings, radio, catalog);
   const commands = [createRadioCommand(catalog, radio, settings), configPanel.command];
   const componentHandlers = [configPanel.componentHandler];
   const client = createDiscordClient(commands, componentHandlers, radio, settings, catalog);

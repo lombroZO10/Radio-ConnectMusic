@@ -36,6 +36,43 @@ export class JsonGuildSettingsRepository implements GuildSettingsRepository {
       guildId,
       voiceChannelId,
       ...(current?.stationId ? { stationId: current.stationId } : {}),
+      ...(current?.defaultStationId ? { defaultStationId: current.defaultStationId } : {}),
+      ...(current?.fallbackStationId ? { fallbackStationId: current.fallbackStationId } : {}),
+    });
+  }
+
+  clearVoiceChannel(guildId: string): void {
+    const current = this.#settings.get(guildId);
+    if (!current) return;
+    this.#settings.delete(guildId);
+    try {
+      this.#save();
+    } catch (error) {
+      this.#settings.set(guildId, current);
+      throw error;
+    }
+  }
+
+  setDefaultStation(guildId: string, stationId: string): void {
+    const current = this.#settings.get(guildId);
+    if (!current) throw new Error('Configure o canal de voz antes de salvar a estação padrão.');
+    this.#commit(guildId, { ...current, defaultStationId: stationId });
+  }
+
+  setFallbackStation(guildId: string, stationId: string): void {
+    const current = this.#settings.get(guildId);
+    if (!current) throw new Error('Configure o canal de voz antes de salvar a estação reserva.');
+    this.#commit(guildId, { ...current, fallbackStationId: stationId });
+  }
+
+  clearFallbackStation(guildId: string): void {
+    const current = this.#settings.get(guildId);
+    if (!current?.fallbackStationId) return;
+    this.#commit(guildId, {
+      guildId: current.guildId,
+      voiceChannelId: current.voiceChannelId,
+      ...(current.stationId ? { stationId: current.stationId } : {}),
+      ...(current.defaultStationId ? { defaultStationId: current.defaultStationId } : {}),
     });
   }
 

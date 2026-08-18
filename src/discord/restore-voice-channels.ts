@@ -23,11 +23,13 @@ export async function restoreConfiguredVoiceChannels(
         logger.warn(guildSettings, 'Canal de voz configurado não existe mais');
         continue;
       }
-      const station = guildSettings.stationId
-        ? catalog.getById(guildSettings.stationId)
+      const stationId = guildSettings.stationId ?? guildSettings.defaultStationId;
+      const station = stationId ? catalog.getById(stationId) : undefined;
+      const fallbackStation = guildSettings.fallbackStationId
+        ? catalog.getById(guildSettings.fallbackStationId)
         : undefined;
       if (station) {
-        await radio.play(channel, station);
+        await radio.play(channel, station, fallbackStation);
         logger.info(guildSettings, 'Canal e transmissão permanente restaurados');
       } else {
         await radio.connect(channel);

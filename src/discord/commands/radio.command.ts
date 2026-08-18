@@ -113,7 +113,10 @@ export function createRadioCommand(
           return;
         }
 
-        await radio.play(channel, station);
+        const fallbackStation = configured.fallbackStationId
+          ? catalog.getById(configured.fallbackStationId)
+          : undefined;
+        await radio.play(channel, station, fallbackStation);
         try {
           settings.setStation(interaction.guildId, station.id);
         } catch (error) {

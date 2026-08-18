@@ -62,6 +62,8 @@ export class RadioSession {
   #connection: VoiceConnection | undefined;
   #channel: VoiceBasedChannel | undefined;
   #station: Station | undefined;
+  #fallbackStation: Station | undefined;
+  #fallbackActivated = false;
   #channelId: string | undefined;
   #reconnectAttempts = 0;
   #reconnectTimer: NodeJS.Timeout | undefined;
@@ -142,9 +144,15 @@ export class RadioSession {
     }
   }
 
-  async play(channel: VoiceBasedChannel, station: Station): Promise<void> {
+  async play(
+    channel: VoiceBasedChannel,
+    station: Station,
+    fallbackStation?: Station,
+  ): Promise<void> {
     const playbackGeneration = ++this.#playbackGeneration;
     this.#station = station;
+    this.#fallbackStation = fallbackStation;
+    this.#fallbackActivated = false;
     this.#stoppedIntentionally = false;
     this.#clearReconnectTimer();
     await this.connect(channel);
@@ -160,6 +168,8 @@ export class RadioSession {
     this.#destroyTranscoder();
     this.#player.stop(true);
     this.#station = undefined;
+    this.#fallbackStation = undefined;
+    this.#fallbackActivated = false;
     this.#playbackStartedAt = undefined;
     this.#reconnectAttempts = 0;
   }
@@ -339,6 +349,19 @@ export class RadioSession {
       return;
     }
     this.#reconnectAttempts += 1;
+    if (
+      !this.#fallbackActivated &&
+      this.#fallbackStation &&
+      this.#reconnectAttempts >= this.#settings.maxReconnectAttempts
+    ) {
+      this.#station = this.#fallbackStation;
+      this.#fallbackActivated = true;
+      this.#reconnectAttempts = 0;
+      this.#logger.warn(
+        { stationId: this.#station.id },
+        'Estação principal indisponível; ativando estação reserva',
+      );
+    }
     const station = this.#station;
     const delayMs = this.#reconnectDelay(this.#reconnectAttempts);
     this.#logger.warn(

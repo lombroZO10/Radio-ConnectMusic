@@ -19,10 +19,14 @@ export class RadioManager {
     await session.connect(channel);
   }
 
-  async play(channel: VoiceBasedChannel, station: Station): Promise<void> {
+  async play(
+    channel: VoiceBasedChannel,
+    station: Station,
+    fallbackStation?: Station,
+  ): Promise<void> {
     const session = this.#getOrCreate(channel.guild.id);
     try {
-      await session.play(channel, station);
+      await session.play(channel, station, fallbackStation);
     } catch (error) {
       session.stopPlayback();
       throw error;
