@@ -1,0 +1,221 @@
+{
+  "branding": {
+    "name": "Radio Connect Music 24/7",
+    "shortName": "Connect Music",
+    "color": "#7C3AED",
+    "websiteUrl": null,
+    "logoUrl": null
+  },
+  "discord": {
+    "activity": "Radio Connect Music 24/7"
+  },
+  "playback": {
+    "connectionTimeoutMs": 15000,
+    "voiceConnectAttempts": 1,
+    "maxReconnectAttempts": 6,
+    "reconnectDelayMs": 5000,
+    "maxReconnectDelayMs": 120000,
+    "voiceRecoveryTimeoutMs": 5000,
+    "healthCheckIntervalMs": 60000,
+    "minimumStablePlaybackMs": 30000,
+    "audioBitrateKbps": 128,
+    "encoderComplexity": 0
+  },
+  "logging": {
+    "level": "info"
+  },
+  "stations": [
+    {
+      "id": "studio-souto-rap-nacional",
+      "name": "Radio Studio Souto - Rap Nacional",
+      "description": "Rap nacional, hip-hop brasileiro, clássicos e lançamentos do gênero.",
+      "genres": ["Rap Nacional", "Hip-Hop", "Música Brasileira"],
+      "country": "BR",
+      "language": "pt",
+      "streamUrl": "https://centova5.transmissaodigital.com:20031/;",
+      "homepageUrl": "https://radios-brasil.com/3129-radio-studio-souto-rap-nacional.html",
+      "logoUrl": "https://cdn.radoxo.com/images/brazil/radio-studio-souto-rap-nacional.webp",
+      "enabled": true
+    },
+    {
+      "id": "hunter-sertanejo",
+      "name": "Hunter.FM - O Canal Sertanejo",
+      "description": "As músicas mais populares e os principais lançamentos do sertanejo.",
+      "genres": ["Sertanejo", "Sertanejo Universitário", "Música Brasileira"],
+      "country": "BR",
+      "language": "pt",
+      "streamUrl": "https://live.hunter.fm/sertanejo_high",
+      "homepageUrl": "https://hunter.fm/sertanejo/",
+      "logoUrl": "https://cdn.hunter.fm/image/thumb/station/sertanejo-third/400x400ht.jpg",
+      "enabled": true
+    },
+    {
+      "id": "hunter-pop",
+      "name": "Hunter.FM - O Canal Pop",
+      "description": "Hits do pop internacional e throwbacks para cantar junto.",
+      "genres": ["Pop", "Pop Internacional", "Hits"],
+      "country": "BR",
+      "language": "pt",
+      "streamUrl": "https://live.hunter.fm/pop_high",
+      "homepageUrl": "https://hunter.fm/pop/",
+      "logoUrl": "https://cdn.hunter.fm/image/thumb/station/pop-third/400x400ht.jpg",
+      "enabled": true
+    },
+    {
+      "id": "hunter-pagode",
+      "name": "Hunter.FM - O Canal Pagode",
+      "description": "Os sucessos atuais e os clássicos do pagode em um só canal.",
+      "genres": ["Pagode", "Samba", "Música Brasileira"],
+      "country": "BR",
+      "language": "pt",
+      "streamUrl": "https://live.hunter.fm/pagode_high",
+      "homepageUrl": "https://hunter.fm/pagode/",
+      "logoUrl": "https://cdn.hunter.fm/image/thumb/station/pagode-second/400x400ht.jpg",
+      "enabled": true
+    },
+    {
+      "id": "hunter-rock",
+      "name": "Hunter.FM - O Canal Rock",
+      "description": "Rock 'n roll de todos os tempos em um repertório atemporal.",
+      "genres": ["Rock", "Rock Clássico", "Rock Internacional"],
+      "country": "BR",
+      "language": "pt",
+      "streamUrl": "https://live.hunter.fm/rock_high",
+      "homepageUrl": "https://hunter.fm/rock/",
+      "logoUrl": "https://cdn.hunter.fm/image/thumb/station/rock-third/400x400ht.jpg",
+      "enabled": true
+    },
+    {
+      "id": "hunter-master",
+      "name": "Hunter.FM - O Canal Master",
+      "description": "Seleção refinada de sucessos recentes e clássicos marcantes.",
+      "genres": ["Adulto Contemporâneo", "Clássicos", "Pop"],
+      "country": "BR",
+      "language": "pt",
+      "streamUrl": "https://live.hunter.fm/master_high",
+      "homepageUrl": "https://hunter.fm/master/",
+      "logoUrl": "https://cdn.hunter.fm/image/thumb/station/master/400x400ht.jpg",
+      "enabled": true
+    },
+    {
+      "id": "hunter-mpb",
+      "name": "Hunter.FM - O Canal MPB",
+      "description": "Sucessos que celebram a riqueza e a diversidade da música brasileira.",
+      "genres": ["MPB", "Música Brasileira"],
+      "country": "BR",
+      "language": "pt",
+      "streamUrl": "https://live.hunter.fm/mpb_high",
+      "homepageUrl": "https://hunter.fm/mpb/",
+      "logoUrl": "https://cdn.hunter.fm/image/thumb/station/mpb-v2/400x400ht.jpg",
+      "enabled": true
+    },
+    {
+      "id": "hunter-gospel",
+      "name": "Hunter.FM - O Canal Gospel",
+      "description": "Os principais nomes da música gospel nacional reunidos em uma rádio.",
+      "genres": ["Gospel", "Música Cristã", "Música Brasileira"],
+      "country": "BR",
+      "language": "pt",
+      "streamUrl": "https://live.hunter.fm/gospel_high",
+      "homepageUrl": "https://hunter.fm/gospel/",
+      "logoUrl": "https://cdn.hunter.fm/image/thumb/station/gospel-third/400x400ht.jpg",
+      "enabled": true
+    },
+    {
+      "id": "hunter-hits-brasil",
+      "name": "Hunter.FM - O Canal Hits Brasil",
+      "description": "Trap, funk, sertanejo, pagode e as músicas brasileiras mais tocadas.",
+      "genres": ["Hits Brasil", "Funk", "Trap", "Sertanejo", "Pagode"],
+      "country": "BR",
+      "language": "pt",
+      "streamUrl": "https://live.hunter.fm/hitsbrasil_high",
+      "homepageUrl": "https://hunter.fm/hitsbrasil/",
+      "logoUrl": "https://cdn.hunter.fm/image/thumb/station/hitsbrasil-third/400x400ht.jpg",
+      "enabled": true
+    },
+    {
+      "id": "hunter-pop2k",
+      "name": "Hunter.FM - O Canal Pop2K",
+      "description": "Os grandes sucessos dos anos 2000 e músicas que marcaram época.",
+      "genres": ["Anos 2000", "Pop", "Nostalgia"],
+      "country": "BR",
+      "language": "pt",
+      "streamUrl": "https://live.hunter.fm/pop2k_high",
+      "homepageUrl": "https://hunter.fm/pop2k/",
+      "logoUrl": "https://cdn.hunter.fm/image/thumb/station/pop2k-third/400x400ht.jpg",
+      "enabled": true
+    },
+    {
+      "id": "hunter-moda-sertaneja",
+      "name": "Hunter.FM - O Canal Moda Sertaneja",
+      "description": "Sucessos eternos da música sertaneja raiz e da moda de viola.",
+      "genres": ["Sertanejo Raiz", "Moda de Viola", "Música Brasileira"],
+      "country": "BR",
+      "language": "pt",
+      "streamUrl": "https://live.hunter.fm/modasertaneja_high",
+      "homepageUrl": "https://hunter.fm/modasertaneja/",
+      "logoUrl": "https://cdn.hunter.fm/image/thumb/station/modasertaneja-third/400x400ht.jpg",
+      "enabled": true
+    },
+    {
+      "id": "hunter-anos-80",
+      "name": "Hunter.FM - O Canal 80",
+      "description": "Sucessos inesquecíveis e faixas icônicas da era de ouro dos anos 80.",
+      "genres": ["Anos 80", "Flashback", "Pop", "Rock"],
+      "country": "BR",
+      "language": "pt",
+      "streamUrl": "https://live.hunter.fm/80s_high",
+      "homepageUrl": "https://hunter.fm/80s/",
+      "logoUrl": "https://cdn.hunter.fm/image/thumb/station/80s-third/400x400ht.jpg",
+      "enabled": true
+    },
+    {
+      "id": "hunter-kpop",
+      "name": "Hunter.FM - O Canal K-pop",
+      "description": "Lançamentos e clássicos do K-pop que conquistaram o mundo.",
+      "genres": ["K-Pop", "Pop Asiático"],
+      "country": "BR",
+      "language": "pt",
+      "streamUrl": "https://live.hunter.fm/kpop_high",
+      "homepageUrl": "https://hunter.fm/kpop/",
+      "logoUrl": "https://cdn.hunter.fm/image/thumb/station/kpop/400x400ht.jpg",
+      "enabled": true
+    },
+    {
+      "id": "hunter-pisadinha",
+      "name": "Hunter.FM - O Canal Pisadinha",
+      "description": "Hits contagiantes da pisadinha e do piseiro para dançar.",
+      "genres": ["Pisadinha", "Piseiro", "Forró", "Música Brasileira"],
+      "country": "BR",
+      "language": "pt",
+      "streamUrl": "https://live.hunter.fm/pisadinha_high",
+      "homepageUrl": "https://hunter.fm/pisadinha/",
+      "logoUrl": "https://cdn.hunter.fm/image/thumb/station/pisadinha-third/400x400ht.jpg",
+      "enabled": true
+    },
+    {
+      "id": "hunter-lofi",
+      "name": "Hunter.FM - O Canal Lo-Fi",
+      "description": "Batidas suaves para focar, estudar, relaxar ou dormir.",
+      "genres": ["Lo-Fi", "Chillout", "Relaxante", "Foco"],
+      "country": "BR",
+      "language": "pt",
+      "streamUrl": "https://live.hunter.fm/lofi_high",
+      "homepageUrl": "https://hunter.fm/lofi/",
+      "logoUrl": "https://cdn.hunter.fm/image/thumb/station/lo-fi-third/400x400ht.jpg",
+      "enabled": true
+    },
+    {
+      "id": "hunter-tropical",
+      "name": "Hunter.FM - O Canal Tropical",
+      "description": "Músicas quentes para curtir praia, piscina e dias de sol.",
+      "genres": ["Tropical", "Verão", "Pop", "Dance"],
+      "country": "BR",
+      "language": "pt",
+      "streamUrl": "https://live.hunter.fm/tropical_high",
+      "homepageUrl": "https://hunter.fm/tropical/",
+      "logoUrl": "https://cdn.hunter.fm/image/thumb/station/tropical-third/400x400ht.jpg",
+      "enabled": true
+    }
+  ]
+}

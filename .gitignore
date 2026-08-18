@@ -1,0 +1,10 @@
+node_modules/
+dist/
+build/
+coverage/
+.env
+*.log
+data/guild-settings.json
+.DS_Store
+.idea/
+.vscode/
