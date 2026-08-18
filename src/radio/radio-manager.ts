@@ -36,6 +36,13 @@ export class RadioManager {
     return true;
   }
 
+  disconnect(guildId: string): boolean {
+    const session = this.#sessions.get(guildId);
+    if (!session) return false;
+    session.disconnect();
+    return true;
+  }
+
   get(guildId: string): SessionSnapshot | undefined {
     return this.#sessions.get(guildId)?.snapshot();
   }

@@ -213,7 +213,7 @@ export class RadioSession {
         if (this.#transcoder === transcoder) this.#transcoder = undefined;
         if (!this.#stoppedIntentionally && code !== 0 && code !== null) {
           this.#recordError(
-            new Error(`FFmpeg encerrou com código ${code}${signal ? ` (${signal})` : ''}`),
+            new Error(`FFmpeg encerrou com código ${String(code)}${signal ? ` (${signal})` : ''}`),
           );
           this.#logger.warn(
             { code, signal, stationId: station.id },

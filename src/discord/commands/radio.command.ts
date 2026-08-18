@@ -7,6 +7,7 @@ import {
   SlashCommandBuilder,
   type GuildMember,
 } from 'discord.js';
+import { AudioPlayerStatus, VoiceConnectionStatus } from '@discordjs/voice';
 
 import { config } from '../../config/index.js';
 import type { StationCatalog } from '../../radio/station-catalog.js';
@@ -153,8 +154,8 @@ export function createRadioCommand(
         const configured = settings.get(interaction.guildId);
         const channelId = status?.channelId ?? configured?.voiceChannelId;
         const isHealthy =
-          status?.voiceStatus === 'ready' &&
-          status.audioStatus === 'playing' &&
+          status?.voiceStatus === VoiceConnectionStatus.Ready &&
+          status.audioStatus === AudioPlayerStatus.Playing &&
           status.transcoderActive;
         const isRecovering = Boolean(status?.station) && !isHealthy;
         const color = !status?.station ? 0x64748b : isHealthy ? 0x22c55e : 0xf59e0b;
@@ -210,19 +211,19 @@ export function createRadioCommand(
             {
               name: 'Tempo de reprodução',
               value: status?.playbackStartedAt
-                ? `<t:${Math.floor(status.playbackStartedAt / 1000)}:R>`
+                ? `<t:${String(Math.floor(status.playbackStartedAt / 1000))}:R>`
                 : '—',
               inline: true,
             },
             {
               name: 'Recuperações',
-              value: `Áudio: **${status?.reconnectAttempts ?? 0}**\nVoz: **${status?.voiceReconnectAttempts ?? 0}**`,
+              value: `Áudio: **${String(status?.reconnectAttempts ?? 0)}**\nVoz: **${String(status?.voiceReconnectAttempts ?? 0)}**`,
               inline: true,
             },
             {
               name: 'Último erro',
               value: status?.lastError
-                ? `${status.lastError.message}\n<t:${Math.floor(status.lastError.at / 1000)}:R>`
+                ? `${status.lastError.message}\n<t:${String(Math.floor(status.lastError.at / 1000))}:R>`
                 : 'Nenhum erro registrado',
               inline: false,
             },
