@@ -21,6 +21,9 @@ export const guildSettingsSchema = z.object({
     .max(32)
     .regex(/^[a-z0-9-]+$/)
     .optional(),
+  controlRoleIds: z.array(z.string().regex(/^\d+$/)).max(10).optional(),
+  configRoleIds: z.array(z.string().regex(/^\d+$/)).max(10).optional(),
+  publicControlEnabled: z.boolean().optional(),
 });
 
 export const guildSettingsFileSchema = z.object({
@@ -38,6 +41,9 @@ export interface GuildSettingsRepository {
   setDefaultStation(guildId: string, stationId: string): void;
   setFallbackStation(guildId: string, stationId: string): void;
   clearFallbackStation(guildId: string): void;
+  setControlRoles(guildId: string, roleIds: string[]): void;
+  setConfigRoles(guildId: string, roleIds: string[]): void;
+  setPublicControlEnabled(guildId: string, enabled: boolean): void;
   setStation(guildId: string, stationId: string): void;
   clearStation(guildId: string): void;
 }

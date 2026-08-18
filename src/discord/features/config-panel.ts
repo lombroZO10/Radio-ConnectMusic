@@ -8,6 +8,7 @@ import {
   InteractionContextType,
   MessageFlags,
   PermissionFlagsBits,
+  RoleSelectMenuBuilder,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
   SlashCommandBuilder,
@@ -23,12 +24,20 @@ import type { GuildSettingsRepository } from '../../settings/guild-settings.js';
 import type { DiscordCommand } from '../command.js';
 import type { ComponentHandler } from '../component.js';
 import { brandColor } from '../embeds.js';
+import { canManageConfiguration } from '../permissions.js';
 
 const CUSTOM_ID_PREFIX = 'config:';
 const VOICE_CHANNEL_ID = `${CUSTOM_ID_PREFIX}voice-channel`;
 const DEFAULT_STATION_ID = `${CUSTOM_ID_PREFIX}station-default`;
 const FALLBACK_STATION_ID = `${CUSTOM_ID_PREFIX}station-fallback`;
 const CLEAR_FALLBACK_ID = `${CUSTOM_ID_PREFIX}station-fallback-clear`;
+const PERMISSIONS_ID = `${CUSTOM_ID_PREFIX}permissions`;
+const PERMISSIONS_BACK_ID = `${CUSTOM_ID_PREFIX}permissions-back`;
+const CONTROL_ROLE_ID = `${CUSTOM_ID_PREFIX}permissions-control-role`;
+const CONFIG_ROLE_ID = `${CUSTOM_ID_PREFIX}permissions-config-role`;
+const CLEAR_CONTROL_ROLES_ID = `${CUSTOM_ID_PREFIX}permissions-control-clear`;
+const CLEAR_CONFIG_ROLES_ID = `${CUSTOM_ID_PREFIX}permissions-config-clear`;
+const PUBLIC_CONTROL_ID = `${CUSTOM_ID_PREFIX}permissions-public-toggle`;
 const CLEAR_VOICE_ID = `${CUSTOM_ID_PREFIX}voice-clear`;
 const CLEAR_VOICE_CONFIRM_ID = `${CUSTOM_ID_PREFIX}voice-clear-confirm`;
 const CLEAR_VOICE_CANCEL_ID = `${CUSTOM_ID_PREFIX}voice-clear-cancel`;
@@ -50,8 +59,7 @@ export function createConfigPanelFeature(
       data: new SlashCommandBuilder()
         .setName('config')
         .setDescription('Abre a central administrativa da rádio')
-        .setContexts(InteractionContextType.Guild)
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild),
+        .setContexts(InteractionContextType.Guild),
 
       async execute({ interaction }) {
         if (!interaction.inGuild() || !interaction.guild) {
@@ -61,7 +69,14 @@ export function createConfigPanelFeature(
           });
           return;
         }
-        if (!canManageGuild(interaction.memberPermissions)) {
+        const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+        if (
+          !canManageConfiguration(
+            interaction.memberPermissions,
+            member,
+            settings.get(interaction.guild.id),
+          )
+        ) {
           await interaction.reply({
             content: 'Você precisa da permissão **Gerenciar Servidor** para abrir este painel.',
             flags: MessageFlags.Ephemeral,
@@ -80,7 +95,14 @@ export function createConfigPanelFeature(
 
       async execute(interaction) {
         if (!interaction.inGuild() || !interaction.guild) return;
-        if (!canManageGuild(interaction.memberPermissions)) {
+        const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+        if (
+          !canManageConfiguration(
+            interaction.memberPermissions,
+            member,
+            settings.get(interaction.guild.id),
+          )
+        ) {
           await interaction.reply({
             content: 'Você não tem permissão para alterar esta configuração.',
             flags: MessageFlags.Ephemeral,
@@ -99,6 +121,38 @@ export function createConfigPanelFeature(
 
         if (interaction.customId === REFRESH_ID) {
           await interaction.update(buildPanel(interaction.guild, settings, radio, catalog));
+          return;
+        }
+
+        if (interaction.customId === PERMISSIONS_ID) {
+          await interaction.update(buildPermissionsPanel(interaction.guild, settings));
+          return;
+        }
+
+        if (interaction.customId === PERMISSIONS_BACK_ID) {
+          await interaction.update(buildPanel(interaction.guild, settings, radio, catalog));
+          return;
+        }
+
+        if (interaction.customId === PUBLIC_CONTROL_ID) {
+          await interaction.deferUpdate();
+          const saved = settings.get(interaction.guild.id);
+          settings.setPublicControlEnabled(interaction.guild.id, !saved?.publicControlEnabled);
+          await interaction.editReply(buildPermissionsPanel(interaction.guild, settings));
+          return;
+        }
+
+        if (
+          interaction.customId === CLEAR_CONTROL_ROLES_ID ||
+          interaction.customId === CLEAR_CONFIG_ROLES_ID
+        ) {
+          await interaction.deferUpdate();
+          if (interaction.customId === CLEAR_CONTROL_ROLES_ID) {
+            settings.setControlRoles(interaction.guild.id, []);
+          } else {
+            settings.setConfigRoles(interaction.guild.id, []);
+          }
+          await interaction.editReply(buildPermissionsPanel(interaction.guild, settings));
           return;
         }
 
@@ -138,6 +192,16 @@ export function createConfigPanelFeature(
 
         if (interaction.customId === FALLBACK_STATION_ID && interaction.isStringSelectMenu()) {
           await saveFallbackStation(interaction, settings, radio, catalog);
+          return;
+        }
+
+        if (interaction.customId === CONTROL_ROLE_ID && interaction.isRoleSelectMenu()) {
+          await savePermissionRole(interaction, settings, 'control');
+          return;
+        }
+
+        if (interaction.customId === CONFIG_ROLE_ID && interaction.isRoleSelectMenu()) {
+          await savePermissionRole(interaction, settings, 'config');
           return;
         }
 
@@ -293,10 +357,107 @@ function buildPanel(
         .setStyle(ButtonStyle.Danger),
     );
   }
+  actionsRow.addComponents(
+    new ButtonBuilder()
+      .setCustomId(PERMISSIONS_ID)
+      .setLabel('Permissões')
+      .setEmoji('🛡️')
+      .setStyle(ButtonStyle.Primary),
+  );
 
   return {
     embeds: [embed],
     components: [channelRow, defaultStationRow, fallbackStationRow, actionsRow],
+  };
+}
+
+function buildPermissionsPanel(guild: Guild, settings: GuildSettingsRepository) {
+  const saved = settings.get(guild.id);
+  const controlRoles = (saved?.controlRoleIds ?? [])
+    .map((roleId) => guild.roles.cache.get(roleId))
+    .filter((role): role is NonNullable<typeof role> => Boolean(role));
+  const configRoles = (saved?.configRoleIds ?? [])
+    .map((roleId) => guild.roles.cache.get(roleId))
+    .filter((role): role is NonNullable<typeof role> => Boolean(role));
+  const roleText = (roles: readonly { id: string }[]) =>
+    roles.length ? roles.map((role) => `<@&${role.id}>`).join(', ') : 'Nenhum cargo configurado';
+  const controlSelect = new RoleSelectMenuBuilder()
+    .setCustomId(CONTROL_ROLE_ID)
+    .setPlaceholder('Adicionar cargo de controle da rádio')
+    .setMinValues(1)
+    .setMaxValues(1);
+  const configSelect = new RoleSelectMenuBuilder()
+    .setCustomId(CONFIG_ROLE_ID)
+    .setPlaceholder('Adicionar cargo de configuração')
+    .setMinValues(1)
+    .setMaxValues(1);
+  const actionRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId(PUBLIC_CONTROL_ID)
+      .setLabel(
+        saved?.publicControlEnabled ? 'Controle público: ativo' : 'Controle público: desativado',
+      )
+      .setEmoji(saved?.publicControlEnabled ? '🟢' : '🔒')
+      .setStyle(saved?.publicControlEnabled ? ButtonStyle.Success : ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(CLEAR_CONTROL_ROLES_ID)
+      .setLabel('Limpar controle')
+      .setEmoji('🧹')
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(CLEAR_CONFIG_ROLES_ID)
+      .setLabel('Limpar configuração')
+      .setEmoji('🧹')
+      .setStyle(ButtonStyle.Secondary),
+  );
+  const navigationRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder()
+      .setCustomId(PERMISSIONS_BACK_ID)
+      .setLabel('Voltar ao painel')
+      .setEmoji('↩️')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId(CLOSE_ID)
+      .setLabel('Fechar painel')
+      .setEmoji('✖️')
+      .setStyle(ButtonStyle.Secondary),
+  );
+  return {
+    embeds: [
+      new EmbedBuilder()
+        .setColor(0x2563eb)
+        .setTitle('🛡️ Central de Permissões')
+        .setDescription(
+          'Controle o acesso por cargos sem expor funções administrativas. Administradores e membros com **Gerenciar Servidor** sempre mantêm acesso total.',
+        )
+        .addFields(
+          {
+            name: '🎛️ Cargos de controle',
+            value: `${roleText(controlRoles)}\n\nPodem tocar, parar e trocar a estação.`,
+            inline: false,
+          },
+          {
+            name: '⚙️ Cargos de configuração',
+            value: `${roleText(configRoles)}\n\nPodem abrir e alterar este painel.`,
+            inline: false,
+          },
+          {
+            name: '🌐 Controle público',
+            value: saved?.publicControlEnabled
+              ? '🟢 Qualquer membro pode controlar a rádio.'
+              : '🔒 Desativado. Somente administradores e cargos autorizados controlam a rádio.',
+            inline: false,
+          },
+        )
+        .setFooter({ text: 'Cargos gerenciados são salvos somente neste servidor.' })
+        .setTimestamp(),
+    ],
+    components: [
+      new ActionRowBuilder<RoleSelectMenuBuilder>().addComponents(controlSelect),
+      new ActionRowBuilder<RoleSelectMenuBuilder>().addComponents(configSelect),
+      actionRow,
+      navigationRow,
+    ],
   };
 }
 
@@ -454,8 +615,48 @@ async function saveFallbackStation(
   await interaction.editReply(buildPanel(interaction.guild, settings, radio, catalog));
 }
 
-function canManageGuild(
-  permissions: Readonly<{ has(permission: bigint): boolean }> | null,
-): boolean {
-  return permissions?.has(PermissionFlagsBits.ManageGuild) ?? false;
+async function savePermissionRole(
+  interaction: MessageComponentInteraction,
+  settings: GuildSettingsRepository,
+  scope: 'control' | 'config',
+): Promise<void> {
+  if (!interaction.isRoleSelectMenu() || !interaction.guild) return;
+  const roleId = interaction.values[0];
+  const role = roleId ? interaction.guild.roles.cache.get(roleId) : undefined;
+  const current = settings.get(interaction.guild.id);
+  if (!role || role.id === interaction.guild.id || role.managed) {
+    await interaction.reply({
+      content: 'Esse cargo é gerenciado pelo Discord e não pode ser usado aqui.',
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+  if (!current) {
+    await interaction.reply({
+      content: 'Configure o canal de voz antes de alterar permissões.',
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+  const currentIds =
+    scope === 'control' ? (current.controlRoleIds ?? []) : (current.configRoleIds ?? []);
+  if (currentIds.includes(role.id)) {
+    await interaction.reply({
+      content: 'Esse cargo já está autorizado.',
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+  if (currentIds.length >= 10) {
+    await interaction.reply({
+      content: 'Limite de 10 cargos atingido. Remova um cargo antes de adicionar outro.',
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
+  await interaction.deferUpdate();
+  const nextIds = [...currentIds, role.id];
+  if (scope === 'control') settings.setControlRoles(interaction.guild.id, nextIds);
+  else settings.setConfigRoles(interaction.guild.id, nextIds);
+  await interaction.editReply(buildPermissionsPanel(interaction.guild, settings));
 }

@@ -15,6 +15,7 @@ import { brandColor, stationEmbed } from '../embeds.js';
 import type { DiscordCommand } from '../command.js';
 import type { RadioManager } from '../../radio/radio-manager.js';
 import type { GuildSettingsRepository } from '../../settings/guild-settings.js';
+import { canControlRadio } from '../permissions.js';
 
 export function createRadioCommand(
   catalog: StationCatalog,
@@ -60,7 +61,7 @@ export function createRadioCommand(
       ),
 
     async execute({ interaction }) {
-      if (!interaction.guildId || !interaction.inGuild()) {
+      if (!interaction.guildId || !interaction.inGuild() || !interaction.guild) {
         await interaction.reply({
           content: 'Use este comando em um servidor.',
           flags: MessageFlags.Ephemeral,
@@ -69,6 +70,19 @@ export function createRadioCommand(
       }
 
       const subcommand = interaction.options.getSubcommand();
+      if (subcommand === 'tocar' || subcommand === 'parar') {
+        const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
+        if (
+          !canControlRadio(interaction.memberPermissions, member, settings.get(interaction.guildId))
+        ) {
+          await interaction.reply({
+            content:
+              'Você não tem permissão para controlar a rádio. Peça a um administrador um cargo autorizado em `/config` → **Permissões**.',
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+      }
 
       if (subcommand === 'tocar') {
         const stationId = interaction.options.getString('estacao', true);
@@ -88,23 +102,15 @@ export function createRadioCommand(
           });
           return;
         }
-        const guild = interaction.guild;
-        if (!guild) {
-          await interaction.reply({
-            content: 'Servidor não encontrado.',
-            flags: MessageFlags.Ephemeral,
-          });
-          return;
-        }
         await interaction.deferReply();
-        const channel = await guild.channels.fetch(configured.voiceChannelId);
+        const channel = await interaction.guild.channels.fetch(configured.voiceChannelId);
         if (channel?.type !== ChannelType.GuildVoice) {
           await interaction.editReply({
             content: 'O canal configurado não existe mais. Use `/config` para escolher outro.',
           });
           return;
         }
-        const botMember = guild.members.me;
+        const botMember = interaction.guild.members.me;
         const permissions = botMember ? channel.permissionsFor(botMember) : undefined;
         if (!permissions?.has([PermissionFlagsBits.Connect, PermissionFlagsBits.Speak])) {
           await interaction.editReply({

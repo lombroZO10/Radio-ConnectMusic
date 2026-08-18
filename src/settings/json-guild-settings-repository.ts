@@ -38,6 +38,11 @@ export class JsonGuildSettingsRepository implements GuildSettingsRepository {
       ...(current?.stationId ? { stationId: current.stationId } : {}),
       ...(current?.defaultStationId ? { defaultStationId: current.defaultStationId } : {}),
       ...(current?.fallbackStationId ? { fallbackStationId: current.fallbackStationId } : {}),
+      ...(current?.controlRoleIds ? { controlRoleIds: current.controlRoleIds } : {}),
+      ...(current?.configRoleIds ? { configRoleIds: current.configRoleIds } : {}),
+      ...(current?.publicControlEnabled !== undefined
+        ? { publicControlEnabled: current.publicControlEnabled }
+        : {}),
     });
   }
 
@@ -73,7 +78,24 @@ export class JsonGuildSettingsRepository implements GuildSettingsRepository {
       voiceChannelId: current.voiceChannelId,
       ...(current.stationId ? { stationId: current.stationId } : {}),
       ...(current.defaultStationId ? { defaultStationId: current.defaultStationId } : {}),
+      ...(current.controlRoleIds ? { controlRoleIds: current.controlRoleIds } : {}),
+      ...(current.configRoleIds ? { configRoleIds: current.configRoleIds } : {}),
+      ...(current.publicControlEnabled !== undefined
+        ? { publicControlEnabled: current.publicControlEnabled }
+        : {}),
     });
+  }
+
+  setControlRoles(guildId: string, roleIds: string[]): void {
+    this.#updateWith(guildId, { controlRoleIds: roleIds });
+  }
+
+  setConfigRoles(guildId: string, roleIds: string[]): void {
+    this.#updateWith(guildId, { configRoleIds: roleIds });
+  }
+
+  setPublicControlEnabled(guildId: string, enabled: boolean): void {
+    this.#updateWith(guildId, { publicControlEnabled: enabled });
   }
 
   setStation(guildId: string, stationId: string): void {
@@ -88,7 +110,20 @@ export class JsonGuildSettingsRepository implements GuildSettingsRepository {
     this.#commit(guildId, {
       guildId: current.guildId,
       voiceChannelId: current.voiceChannelId,
+      ...(current.defaultStationId ? { defaultStationId: current.defaultStationId } : {}),
+      ...(current.fallbackStationId ? { fallbackStationId: current.fallbackStationId } : {}),
+      ...(current.controlRoleIds ? { controlRoleIds: current.controlRoleIds } : {}),
+      ...(current.configRoleIds ? { configRoleIds: current.configRoleIds } : {}),
+      ...(current.publicControlEnabled !== undefined
+        ? { publicControlEnabled: current.publicControlEnabled }
+        : {}),
     });
+  }
+
+  #updateWith(guildId: string, patch: Partial<GuildSettings>): void {
+    const current = this.#settings.get(guildId);
+    if (!current) throw new Error('Configure o canal de voz antes de alterar permissões.');
+    this.#commit(guildId, { ...current, ...patch });
   }
 
   #load(): void {
