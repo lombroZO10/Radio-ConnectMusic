@@ -59,6 +59,10 @@ export const environmentSchema = z.object({
     (value) => (value === '' ? undefined : value),
     z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).optional(),
   ),
+  LOG_FORMAT: z.preprocess(
+    (value) => (value === '' ? undefined : value),
+    z.enum(['pretty', 'json']).optional(),
+  ),
 });
 
 export type RadioConfig = z.infer<typeof radioConfigSchema>;
