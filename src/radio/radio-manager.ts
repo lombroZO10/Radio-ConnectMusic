@@ -2,7 +2,7 @@ import type { VoiceBasedChannel } from 'discord.js';
 
 import type { RadioConfig, Station } from '../config/schemas.js';
 import type { logger as rootLogger } from '../shared/logger.js';
-import { RadioSession, type SessionSnapshot } from './radio-session.js';
+import { RadioSession, type RadioStatusSnapshot, type SessionSnapshot } from './radio-session.js';
 
 type Logger = typeof rootLogger;
 
@@ -38,6 +38,10 @@ export class RadioManager {
 
   get(guildId: string): SessionSnapshot | undefined {
     return this.#sessions.get(guildId)?.snapshot();
+  }
+
+  getStatus(guildId: string): RadioStatusSnapshot | undefined {
+    return this.#sessions.get(guildId)?.statusSnapshot();
   }
 
   getChannelId(guildId: string): string | undefined {

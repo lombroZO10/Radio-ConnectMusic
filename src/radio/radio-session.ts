@@ -34,6 +34,19 @@ export interface SessionSnapshot {
   channelId: string;
 }
 
+export interface RadioStatusSnapshot {
+  station?: Station | undefined;
+  channelId?: string | undefined;
+  voiceStatus: VoiceConnectionStatus | 'not-connected';
+  audioStatus: AudioPlayerStatus;
+  playbackStartedAt?: number | undefined;
+  reconnectAttempts: number;
+  voiceReconnectAttempts: number;
+  lastError?: { message: string; at: number } | undefined;
+  transcoderActive: boolean;
+  intentionallyStopped: boolean;
+}
+
 export class VoiceConnectionSupersededError extends Error {
   constructor() {
     super('A tentativa de conexão foi substituída por um canal mais recente.');
@@ -60,6 +73,8 @@ export class RadioSession {
   #connectionGeneration = 0;
   #playbackGeneration = 0;
   #stoppedIntentionally = false;
+  #playbackStartedAt: number | undefined;
+  #lastError: RadioStatusSnapshot['lastError'];
 
   constructor(guildId: string, settings: RadioConfig['playback'], logger: Logger) {
     this.#settings = settings;
@@ -71,10 +86,12 @@ export class RadioSession {
     this.#player.on('error', (error) => {
       this.#clearPlaybackStabilityTimer();
       this.#destroyTranscoder();
+      this.#recordError(error);
       this.#logger.error({ err: error, stationId: this.#station?.id }, 'Falha no áudio');
       this.#scheduleReconnect();
     });
     this.#player.on(AudioPlayerStatus.Playing, () => {
+      this.#playbackStartedAt = Date.now();
       this.#schedulePlaybackStabilityConfirmation();
       this.#logger.info(
         { stationId: this.#station?.id, recoveryAttempt: this.#reconnectAttempts },
@@ -143,6 +160,7 @@ export class RadioSession {
     this.#destroyTranscoder();
     this.#player.stop(true);
     this.#station = undefined;
+    this.#playbackStartedAt = undefined;
     this.#reconnectAttempts = 0;
   }
 
@@ -166,6 +184,21 @@ export class RadioSession {
     return { station: this.#station, channelId: this.#channelId };
   }
 
+  statusSnapshot(): RadioStatusSnapshot {
+    return {
+      station: this.#station,
+      channelId: this.#channelId,
+      voiceStatus: this.#connection?.state.status ?? 'not-connected',
+      audioStatus: this.#player.state.status,
+      playbackStartedAt: this.#playbackStartedAt,
+      reconnectAttempts: this.#reconnectAttempts,
+      voiceReconnectAttempts: this.#voiceReconnectAttempts,
+      lastError: this.#lastError,
+      transcoderActive: Boolean(this.#transcoder),
+      intentionallyStopped: this.#stoppedIntentionally,
+    };
+  }
+
   channelId(): string | undefined {
     return this.#channelId;
   }
@@ -179,6 +212,9 @@ export class RadioSession {
       transcoder.process.once('close', (code, signal) => {
         if (this.#transcoder === transcoder) this.#transcoder = undefined;
         if (!this.#stoppedIntentionally && code !== 0 && code !== null) {
+          this.#recordError(
+            new Error(`FFmpeg encerrou com código ${code}${signal ? ` (${signal})` : ''}`),
+          );
           this.#logger.warn(
             { code, signal, stationId: station.id },
             'Processo do FFmpeg foi encerrado inesperadamente',
@@ -192,6 +228,7 @@ export class RadioSession {
       this.#player.play(resource);
     } catch (error) {
       this.#destroyTranscoder();
+      this.#recordError(error);
       this.#logger.error({ err: error, stationId: station.id }, 'Falha ao abrir a transmissão');
       this.#scheduleReconnect();
     }
@@ -213,6 +250,7 @@ export class RadioSession {
       });
       this.#connection = connection;
       connection.on('error', (error) => {
+        this.#recordError(error);
         this.#logger.error({ err: error, channelId: channel.id }, 'Erro na conexão de voz');
       });
       connection.on('stateChange', (oldState, newState) => {
@@ -418,5 +456,10 @@ export class RadioSession {
     const transcoder = this.#transcoder;
     this.#transcoder = undefined;
     if (transcoder && !transcoder.destroyed) transcoder.destroy();
+  }
+
+  #recordError(error: unknown): void {
+    const message = error instanceof Error ? error.message : String(error);
+    this.#lastError = { message: message.slice(0, 240), at: Date.now() };
   }
 }

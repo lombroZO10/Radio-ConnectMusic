@@ -7,7 +7,7 @@ executáveis ou APIs exclusivos do Windows.
 ## Estado desta etapa
 
 - arquitetura modular e configuração validada;
-- comandos slash `/radio tocar`, `parar`, `agora` e `listar`;
+- comandos slash `/radio tocar`, `parar`, `agora`, `status` e `listar`;
 - central administrativa interativa `/config`, restrita a quem pode gerenciar o servidor;
 - uma sessão de rádio independente por servidor do Discord;
 - canal e última estação salvos por servidor e restaurados após reiniciar;

@@ -44,6 +44,9 @@ export function createRadioCommand(
         subcommand.setName('agora').setDescription('Mostra a estação em reprodução'),
       )
       .addSubcommand((subcommand) =>
+        subcommand.setName('status').setDescription('Mostra o diagnóstico da transmissão'),
+      )
+      .addSubcommand((subcommand) =>
         subcommand
           .setName('listar')
           .setDescription('Lista as estações disponíveis')
@@ -145,6 +148,92 @@ export function createRadioCommand(
         return;
       }
 
+      if (subcommand === 'status') {
+        const status = radio.getStatus(interaction.guildId);
+        const configured = settings.get(interaction.guildId);
+        const channelId = status?.channelId ?? configured?.voiceChannelId;
+        const isHealthy =
+          status?.voiceStatus === 'ready' &&
+          status.audioStatus === 'playing' &&
+          status.transcoderActive;
+        const isRecovering = Boolean(status?.station) && !isHealthy;
+        const color = !status?.station ? 0x64748b : isHealthy ? 0x22c55e : 0xf59e0b;
+        const embed = new EmbedBuilder()
+          .setColor(color)
+          .setTitle('Diagnóstico da Radio Connect Music 24/7')
+          .setDescription(
+            !status?.station
+              ? 'Nenhuma estação está em reprodução neste servidor.'
+              : isHealthy
+                ? 'A transmissão está saudável e ativa.'
+                : isRecovering
+                  ? 'A transmissão está se conectando ou se recuperando.'
+                  : 'A transmissão precisa de atenção.',
+          )
+          .addFields(
+            {
+              name: 'Estado geral',
+              value: status?.station
+                ? isHealthy
+                  ? '🟢 Saudável'
+                  : '🟡 Em recuperação'
+                : '⚪ Parada',
+              inline: true,
+            },
+            {
+              name: 'Conexão de voz',
+              value: status ? voiceStatusLabel(status.voiceStatus) : 'Não inicializada',
+              inline: true,
+            },
+            {
+              name: 'Áudio',
+              value: status ? audioStatusLabel(status.audioStatus) : 'Parado',
+              inline: true,
+            },
+            {
+              name: 'Canal configurado',
+              value: channelId ? `<#${channelId}>` : 'Nenhum — use `/config`',
+              inline: true,
+            },
+            {
+              name: 'Estação atual',
+              value: status?.station
+                ? `${status.station.name}\n\`${status.station.id}\``
+                : 'Nenhuma',
+              inline: true,
+            },
+            {
+              name: 'Transcodificador',
+              value: status?.transcoderActive ? '🟢 FFmpeg ativo' : '⚪ Inativo',
+              inline: true,
+            },
+            {
+              name: 'Tempo de reprodução',
+              value: status?.playbackStartedAt
+                ? `<t:${Math.floor(status.playbackStartedAt / 1000)}:R>`
+                : '—',
+              inline: true,
+            },
+            {
+              name: 'Recuperações',
+              value: `Áudio: **${status?.reconnectAttempts ?? 0}**\nVoz: **${status?.voiceReconnectAttempts ?? 0}**`,
+              inline: true,
+            },
+            {
+              name: 'Último erro',
+              value: status?.lastError
+                ? `${status.lastError.message}\n<t:${Math.floor(status.lastError.at / 1000)}:R>`
+                : 'Nenhum erro registrado',
+              inline: false,
+            },
+          )
+          .setFooter({ text: `${config.branding.name} • diagnóstico operacional` })
+          .setTimestamp();
+
+        await interaction.reply({ embeds: [embed] });
+        return;
+      }
+
       const snapshot = radio.get(interaction.guildId);
       if (subcommand === 'agora') {
         await interaction.reply(
@@ -198,4 +287,25 @@ export function createRadioCommand(
       );
     },
   };
+}
+
+function voiceStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    ready: '🟢 Pronta',
+    connecting: '🟡 Conectando',
+    signalling: '🟡 Negociando',
+    disconnected: '🟠 Desconectada',
+    destroyed: '🔴 Encerrada',
+  };
+  return labels[status] ?? `⚪ ${status}`;
+}
+
+function audioStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    playing: '🟢 Tocando',
+    buffering: '🟡 Carregando',
+    idle: '⚪ Parado',
+    autopaused: '🟠 Pausado',
+  };
+  return labels[status] ?? `⚪ ${status}`;
 }
