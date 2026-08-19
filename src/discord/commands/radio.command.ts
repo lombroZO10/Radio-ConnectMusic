@@ -216,7 +216,7 @@ export function createRadioCommand(
             {
               name: 'Transcodificador',
               value: status?.transcoderActive
-                ? `${customEmojis.green} FFmpeg ativo`
+                ? `${customEmojis.audacity} FFmpeg ativo`
                 : `${customEmojis.white} Inativo`,
               inline: true,
             },

@@ -6,10 +6,10 @@ export const customEmojis = {
   blue: custom('818295bluebulletpoint', '1539731520657432699'),
   bot: custom('bot', '1539720856899686550'),
   edit: custom('caneta', '1539720042734817300'),
-  // Esses dois emojis existem no servidor, mas o Discord não os renderiza
-  // corretamente nos embeds deste bot; os pontos de uso mantêm o fallback Unicode.
-  radio: '📻',
-  sparkle: '🛟',
+  radio: custom('disco', '1539722459413221386'),
+  sparkle: custom('estr_azul', '1539719747556605992'),
+  music: custom('music', '1539735017071058964'),
+  audacity: custom('audacity', '1539735303613325485'),
   close: custom('fechar', '1539721025573494815'),
   green: custom('461436limegreenbullet', '1539731512440913930'),
   id: custom('id', '1539720363225780426'),

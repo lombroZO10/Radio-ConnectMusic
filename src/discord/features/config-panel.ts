@@ -267,7 +267,7 @@ function buildPanel(
       { name: `${customEmojis.blue} Canal de voz 24/7`, value: channelValue, inline: true },
       { name: `${customEmojis.info} Estado da conexão`, value: connectionValue, inline: true },
       {
-        name: `${customEmojis.radio} Transmissão atual`,
+        name: `${customEmojis.music} Transmissão atual`,
         value: playback ? playback.station.name : 'Nenhuma estação em reprodução',
         inline: false,
       },

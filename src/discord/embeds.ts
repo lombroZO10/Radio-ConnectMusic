@@ -9,7 +9,7 @@ export const brandColor = Number.parseInt(config.branding.color.slice(1), 16);
 export function stationEmbed(station: Station): EmbedBuilder {
   const embed = new EmbedBuilder()
     .setColor(brandColor)
-    .setTitle(`${customEmojis.radio} ${station.name}`)
+    .setTitle(`${customEmojis.music} ${station.name}`)
     .setDescription(station.description)
     .addFields({ name: 'Gêneros', value: station.genres.join(' • '), inline: true })
     .setURL(station.homepageUrl)
