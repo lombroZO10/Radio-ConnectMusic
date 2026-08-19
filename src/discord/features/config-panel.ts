@@ -25,6 +25,7 @@ import type { DiscordCommand } from '../command.js';
 import type { ComponentHandler } from '../component.js';
 import { brandColor } from '../embeds.js';
 import { canManageConfiguration } from '../permissions.js';
+import { customEmojis } from '../custom-emojis.js';
 
 const CUSTOM_ID_PREFIX = 'config:';
 const VOICE_CHANNEL_ID = `${CUSTOM_ID_PREFIX}voice-channel`;
@@ -173,8 +174,7 @@ export function createConfigPanelFeature(
           radio.disconnect(interaction.guild.id);
           settings.clearVoiceChannel(interaction.guild.id);
           await interaction.editReply({
-            content:
-              '✅ Canal de voz removido. A rádio não se conectará automaticamente neste servidor.',
+            content: `${customEmojis.green} Canal de voz removido. A rádio não se conectará automaticamente neste servidor.`,
             ...buildPanel(interaction.guild, settings, radio, catalog),
           });
           return;
@@ -226,10 +226,10 @@ function buildPanel(
   const playback = radio.get(guild.id);
   const channelValue = saved ? `<#${saved.voiceChannelId}>` : '`Não configurado`';
   const connectionValue = connectedChannelId
-    ? `🟢 Conectada em <#${connectedChannelId}>`
+    ? `${customEmojis.green} Conectada em <#${connectedChannelId}>`
     : saved
-      ? '🟡 Canal salvo, aguardando conexão'
-      : '⚪ Aguardando configuração';
+      ? `${customEmojis.yellow} Canal salvo, aguardando conexão`
+      : `${customEmojis.white} Aguardando configuração`;
   const selectedChannel = saved ? guild.channels.cache.get(saved.voiceChannelId) : undefined;
   const botMember = guild.members.me;
   const permissions =
@@ -242,9 +242,9 @@ function buildPanel(
         PermissionFlagsBits.Connect,
         PermissionFlagsBits.Speak,
       ])
-      ? '🟢 Ver, conectar e falar'
-      : '🔴 Permissões insuficientes'
-    : '⚪ Aguardando canal';
+      ? `${customEmojis.green} Ver, conectar e falar`
+      : `${customEmojis.red} Permissões insuficientes`
+    : `${customEmojis.white} Aguardando canal`;
   const defaultStationId = saved?.defaultStationId ?? saved?.stationId;
   const defaultStation = defaultStationId ? catalog.getById(defaultStationId) : undefined;
   const fallbackStation = saved?.fallbackStationId
@@ -259,40 +259,40 @@ function buildPanel(
         ? { name: config.branding.name, iconURL: guildIcon }
         : { name: config.branding.name },
     )
-    .setTitle('⚙️ Central de Configuração')
+    .setTitle(`${customEmojis.edit} Central de Configuração`)
     .setDescription(
-      '### 🔊 Canal de voz\nConfigure onde a rádio deve permanecer conectada. A seleção é validada antes de ser salva e as alterações valem somente para este servidor.\n\n### 📻 Estações\nDefina a estação padrão e uma reserva para recuperação operacional.',
+      `### ${customEmojis.blue} Canal de voz\nConfigure onde a rádio deve permanecer conectada. A seleção é validada antes de ser salva e as alterações valem somente para este servidor.\n\n### ${customEmojis.radio} Estações\nDefina a estação padrão e uma reserva para recuperação operacional.`,
     )
     .addFields(
-      { name: '🔊 Canal de voz 24/7', value: channelValue, inline: true },
-      { name: '📡 Estado da conexão', value: connectionValue, inline: true },
+      { name: `${customEmojis.blue} Canal de voz 24/7`, value: channelValue, inline: true },
+      { name: `${customEmojis.info} Estado da conexão`, value: connectionValue, inline: true },
       {
-        name: '🎵 Transmissão atual',
+        name: `${customEmojis.radio} Transmissão atual`,
         value: playback ? playback.station.name : 'Nenhuma estação em reprodução',
         inline: false,
       },
       {
-        name: '📻 Estação padrão',
+        name: `${customEmojis.radio} Estação padrão`,
         value: defaultStation ? `${defaultStation.name}\n\`${defaultStation.id}\`` : 'Não definida',
         inline: true,
       },
       {
-        name: '🛟 Estação reserva',
+        name: `${customEmojis.sparkle} Estação reserva`,
         value: fallbackStation
           ? `${fallbackStation.name}\n\`${fallbackStation.id}\``
           : 'Não definida',
         inline: true,
       },
-      { name: '🛡️ Permissões do bot', value: permissionValue, inline: true },
+      { name: `${customEmojis.moderator} Permissões do bot`, value: permissionValue, inline: true },
       {
-        name: '👥 Ocupação',
+        name: `${customEmojis.members} Ocupação`,
         value: selectedChannel?.isVoiceBased()
           ? `${String(selectedChannel.members.size)} membro(s) conectado(s)`
           : '—',
         inline: true,
       },
       {
-        name: '🔐 Acesso administrativo',
+        name: `${customEmojis.administrator} Acesso administrativo`,
         value: 'Protegido por **Gerenciar Servidor** ou **Administrador**.',
         inline: false,
       },
@@ -336,7 +336,7 @@ function buildPanel(
     new ButtonBuilder()
       .setCustomId(CLOSE_ID)
       .setLabel('Fechar painel')
-      .setEmoji('✖️')
+      .setEmoji(customEmojis.close)
       .setStyle(ButtonStyle.Secondary),
   );
   if (fallbackStation) {
@@ -344,7 +344,7 @@ function buildPanel(
       new ButtonBuilder()
         .setCustomId(CLEAR_FALLBACK_ID)
         .setLabel('Remover reserva')
-        .setEmoji('🧹')
+        .setEmoji(customEmojis.trash)
         .setStyle(ButtonStyle.Secondary),
     );
   }
@@ -353,7 +353,7 @@ function buildPanel(
       new ButtonBuilder()
         .setCustomId(CLEAR_VOICE_ID)
         .setLabel('Remover canal')
-        .setEmoji('🗑️')
+        .setEmoji(customEmojis.trash)
         .setStyle(ButtonStyle.Danger),
     );
   }
@@ -361,7 +361,7 @@ function buildPanel(
     new ButtonBuilder()
       .setCustomId(PERMISSIONS_ID)
       .setLabel('Permissões')
-      .setEmoji('🛡️')
+      .setEmoji(customEmojis.moderator)
       .setStyle(ButtonStyle.Primary),
   );
 
@@ -397,17 +397,17 @@ function buildPermissionsPanel(guild: Guild, settings: GuildSettingsRepository) 
       .setLabel(
         saved?.publicControlEnabled ? 'Controle público: ativo' : 'Controle público: desativado',
       )
-      .setEmoji(saved?.publicControlEnabled ? '🟢' : '🔒')
+      .setEmoji(saved?.publicControlEnabled ? customEmojis.green : customEmojis.white)
       .setStyle(saved?.publicControlEnabled ? ButtonStyle.Success : ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(CLEAR_CONTROL_ROLES_ID)
       .setLabel('Limpar controle')
-      .setEmoji('🧹')
+      .setEmoji(customEmojis.trash)
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(CLEAR_CONFIG_ROLES_ID)
       .setLabel('Limpar configuração')
-      .setEmoji('🧹')
+      .setEmoji(customEmojis.trash)
       .setStyle(ButtonStyle.Secondary),
   );
   const navigationRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -419,33 +419,33 @@ function buildPermissionsPanel(guild: Guild, settings: GuildSettingsRepository) 
     new ButtonBuilder()
       .setCustomId(CLOSE_ID)
       .setLabel('Fechar painel')
-      .setEmoji('✖️')
+      .setEmoji(customEmojis.close)
       .setStyle(ButtonStyle.Secondary),
   );
   return {
     embeds: [
       new EmbedBuilder()
         .setColor(0x2563eb)
-        .setTitle('🛡️ Central de Permissões')
+        .setTitle(`${customEmojis.moderator} Central de Permissões`)
         .setDescription(
           'Controle o acesso por cargos sem expor funções administrativas. Administradores e membros com **Gerenciar Servidor** sempre mantêm acesso total.',
         )
         .addFields(
           {
-            name: '🎛️ Cargos de controle',
+            name: `${customEmojis.staff} Cargos de controle`,
             value: `${roleText(controlRoles)}\n\nPodem tocar, parar e trocar a estação.`,
             inline: false,
           },
           {
-            name: '⚙️ Cargos de configuração',
+            name: `${customEmojis.edit} Cargos de configuração`,
             value: `${roleText(configRoles)}\n\nPodem abrir e alterar este painel.`,
             inline: false,
           },
           {
-            name: '🌐 Controle público',
+            name: `${customEmojis.web} Controle público`,
             value: saved?.publicControlEnabled
-              ? '🟢 Qualquer membro pode controlar a rádio.'
-              : '🔒 Desativado. Somente administradores e cargos autorizados controlam a rádio.',
+              ? `${customEmojis.green} Qualquer membro pode controlar a rádio.`
+              : `${customEmojis.white} Desativado. Somente administradores e cargos autorizados controlam a rádio.`,
             inline: false,
           },
         )
@@ -479,7 +479,7 @@ function buildClearVoiceConfirmation(channelId?: string) {
     new ButtonBuilder()
       .setCustomId(CLEAR_VOICE_CONFIRM_ID)
       .setLabel('Confirmar remoção')
-      .setEmoji('🗑️')
+      .setEmoji(customEmojis.trash)
       .setStyle(ButtonStyle.Danger),
     new ButtonBuilder()
       .setCustomId(CLEAR_VOICE_CANCEL_ID)
@@ -491,7 +491,7 @@ function buildClearVoiceConfirmation(channelId?: string) {
     embeds: [
       new EmbedBuilder()
         .setColor(0xef4444)
-        .setTitle('⚠️ Remover canal de voz?')
+        .setTitle(`${customEmojis.trash} Remover canal de voz?`)
         .setDescription(
           `Isso desconectará a rádio de ${channelId ? `<#${channelId}>` : 'o canal configurado'} e desativará a conexão automática neste servidor.`,
         )

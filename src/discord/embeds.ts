@@ -1,6 +1,7 @@
 import { EmbedBuilder } from 'discord.js';
 
 import { config } from '../config/index.js';
+import { customEmojis } from './custom-emojis.js';
 import type { Station } from '../config/schemas.js';
 
 export const brandColor = Number.parseInt(config.branding.color.slice(1), 16);
@@ -8,7 +9,7 @@ export const brandColor = Number.parseInt(config.branding.color.slice(1), 16);
 export function stationEmbed(station: Station): EmbedBuilder {
   const embed = new EmbedBuilder()
     .setColor(brandColor)
-    .setTitle(`📻 ${station.name}`)
+    .setTitle(`${customEmojis.radio} ${station.name}`)
     .setDescription(station.description)
     .addFields({ name: 'Gêneros', value: station.genres.join(' • '), inline: true })
     .setURL(station.homepageUrl)

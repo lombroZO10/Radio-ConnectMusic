@@ -16,6 +16,7 @@ import type { DiscordCommand } from '../command.js';
 import type { RadioManager } from '../../radio/radio-manager.js';
 import type { GuildSettingsRepository } from '../../settings/guild-settings.js';
 import { canControlRadio } from '../permissions.js';
+import { customEmojis } from '../custom-emojis.js';
 
 export function createRadioCommand(
   catalog: StationCatalog,
@@ -185,9 +186,9 @@ export function createRadioCommand(
               name: 'Estado geral',
               value: status?.station
                 ? isHealthy
-                  ? '🟢 Saudável'
-                  : '🟡 Em recuperação'
-                : '⚪ Parada',
+                  ? `${customEmojis.green} Saudável`
+                  : `${customEmojis.yellow} Em recuperação`
+                : `${customEmojis.white} Parada`,
               inline: true,
             },
             {
@@ -214,7 +215,9 @@ export function createRadioCommand(
             },
             {
               name: 'Transcodificador',
-              value: status?.transcoderActive ? '🟢 FFmpeg ativo' : '⚪ Inativo',
+              value: status?.transcoderActive
+                ? `${customEmojis.green} FFmpeg ativo`
+                : `${customEmojis.white} Inativo`,
               inline: true,
             },
             {
@@ -275,7 +278,7 @@ export function createRadioCommand(
 
       radio.stop(interaction.guildId);
       settings.clearStation(interaction.guildId);
-      await interaction.reply('⏹️ Transmissão encerrada.');
+      await interaction.reply(`${customEmojis.close} Transmissão encerrada.`);
     },
 
     async autocomplete(interaction) {
@@ -301,21 +304,21 @@ export function createRadioCommand(
 
 function voiceStatusLabel(status: string): string {
   const labels: Record<string, string> = {
-    ready: '🟢 Pronta',
-    connecting: '🟡 Conectando',
-    signalling: '🟡 Negociando',
-    disconnected: '🟠 Desconectada',
-    destroyed: '🔴 Encerrada',
+    ready: `${customEmojis.green} Pronta`,
+    connecting: `${customEmojis.yellow} Conectando`,
+    signalling: `${customEmojis.blue} Negociando`,
+    disconnected: `${customEmojis.yellow} Desconectada`,
+    destroyed: `${customEmojis.red} Encerrada`,
   };
-  return labels[status] ?? `⚪ ${status}`;
+  return labels[status] ?? `${customEmojis.white} ${status}`;
 }
 
 function audioStatusLabel(status: string): string {
   const labels: Record<string, string> = {
-    playing: '🟢 Tocando',
-    buffering: '🟡 Carregando',
-    idle: '⚪ Parado',
-    autopaused: '🟠 Pausado',
+    playing: `${customEmojis.green} Tocando`,
+    buffering: `${customEmojis.yellow} Carregando`,
+    idle: `${customEmojis.white} Parado`,
+    autopaused: `${customEmojis.yellow} Pausado`,
   };
-  return labels[status] ?? `⚪ ${status}`;
+  return labels[status] ?? `${customEmojis.white} ${status}`;
 }
