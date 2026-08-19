@@ -1,13 +1,14 @@
 /** Emojis oficiais da Radio Connect Music 24/7 neste servidor. */
-const custom = (name: string, id: string): string => `<:${name}:${id}>`;
+const custom = (name: string, id: string, animated = false): string =>
+  animated ? `<a:${name}:${id}>` : `<:${name}:${id}>`;
 
 export const customEmojis = {
   administrator: custom('administrador', '1539721122004860929'),
   blue: custom('818295bluebulletpoint', '1539731520657432699'),
   bot: custom('bot', '1539720856899686550'),
   edit: custom('caneta', '1539720042734817300'),
-  radio: custom('disco', '1539722459413221386'),
-  sparkle: custom('estr_azul', '1539719747556605992'),
+  radio: custom('disco', '1539722459413221386', true),
+  sparkle: custom('estr_azul', '1539719747556605992', true),
   music: custom('music', '1539735017071058964'),
   audacity: custom('audacity', '1539735303613325485'),
   close: custom('fechar', '1539721025573494815'),
