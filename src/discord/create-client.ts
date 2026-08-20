@@ -195,7 +195,7 @@ async function sendRadioAnnouncementNow(
     const payload = {
       ...(mentionContent ? { content: mentionContent } : {}),
       embeds: [new EmbedBuilder().setColor(color).setTitle(`${emoji} ${title}`).setDescription(description).addFields({ name: `${customEmojis.radio} Canal de voz`, value: event.channelId ? `<#${event.channelId}>` : '—', inline: true }, { name: `${customEmojis.music} Gênero`, value: genres, inline: true }, { name: `${customEmojis.audacity} Áudio`, value: status?.audioStatus ?? 'idle', inline: true }, { name: `${customEmojis.loading} Duração`, value: duration, inline: true }, { name: `${customEmojis.info} Último erro`, value: lastError.slice(0, 1024), inline: false }).setFooter({ text: config.branding.name }).setTimestamp()],
-      allowedMentions: { parse: [...(saved.allowEveryoneMention ? ['everyone' as const] : []), ...(saved.allowHereMention ? ['everyone' as const] : [])], roles: saved.mentionRoleId ? [saved.mentionRoleId] : [] },
+      allowedMentions: { parse: saved.allowEveryoneMention || saved.allowHereMention ? ['everyone' as const] : [], roles: saved.mentionRoleId ? [saved.mentionRoleId] : [] },
     };
     if (saved.liveStatusEnabled && saved.liveStatusMessageId && 'messages' in channel) {
       const message = await channel.messages.fetch(saved.liveStatusMessageId).catch(() => null);
