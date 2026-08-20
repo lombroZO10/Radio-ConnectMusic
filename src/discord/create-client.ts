@@ -166,9 +166,11 @@ async function sendRadioAnnouncement(
       : event.type === 'fallback'
         ? [customEmojis.sparkle, 'Estação reserva acionada', `A estação principal apresentou instabilidade. A rádio mudou para **${event.station.name}**.`, 0xf59e0b]
         : [customEmojis.audacity, 'Conexão recuperada', `A transmissão de **${event.station.name}** voltou ao canal de voz.`, 0x3b82f6];
+    const mentionContent = [saved.allowEveryoneMention ? '@everyone' : '', saved.allowHereMention ? '@here' : '', saved.mentionRoleId ? `<@&${saved.mentionRoleId}>` : ''].filter(Boolean).join(' ');
     const payload = {
+      ...(mentionContent ? { content: mentionContent } : {}),
       embeds: [new EmbedBuilder().setColor(color).setTitle(`${emoji} ${title}`).setDescription(description).addFields({ name: `${customEmojis.radio} Canal de voz`, value: event.channelId ? `<#${event.channelId}>` : 'Conectando', inline: true }).setFooter({ text: config.branding.name }).setTimestamp()],
-      allowedMentions: { parse: [] as never[] },
+      allowedMentions: { parse: [...(saved.allowEveryoneMention ? ['everyone' as const] : []), ...(saved.allowHereMention ? ['everyone' as const] : [])], roles: saved.mentionRoleId ? [saved.mentionRoleId] : [] },
     };
     if (saved.liveStatusEnabled && saved.liveStatusMessageId && 'messages' in channel) {
       const message = await channel.messages.fetch(saved.liveStatusMessageId).catch(() => null);

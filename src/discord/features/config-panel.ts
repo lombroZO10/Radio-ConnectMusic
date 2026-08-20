@@ -47,6 +47,10 @@ const MESSAGES_BACK_ID = `${CUSTOM_ID_PREFIX}messages-back`;
 const ANNOUNCEMENT_CHANNEL_ID = `${CUSTOM_ID_PREFIX}messages-channel`;
 const CLEAR_ANNOUNCEMENT_CHANNEL_ID = `${CUSTOM_ID_PREFIX}messages-channel-clear`;
 const TEST_ANNOUNCEMENT_ID = `${CUSTOM_ID_PREFIX}messages-test`;
+const MENTION_ROLE_ID = `${CUSTOM_ID_PREFIX}messages-mention-role`;
+const MENTION_CLEAR_ROLE_ID = `${CUSTOM_ID_PREFIX}messages-mention-role-clear`;
+const MENTION_EVERYONE_ID = `${CUSTOM_ID_PREFIX}messages-mention-everyone`;
+const MENTION_HERE_ID = `${CUSTOM_ID_PREFIX}messages-mention-here`;
 const TEMPLATES_ID = `${CUSTOM_ID_PREFIX}templates`;
 const TEMPLATES_BACK_ID = `${CUSTOM_ID_PREFIX}templates-back`;
 const TEMPLATE_EDIT_PREFIX = `${CUSTOM_ID_PREFIX}template-edit:`;
@@ -198,6 +202,23 @@ export function createConfigPanelFeature(
           return;
         }
 
+        if (interaction.customId === MENTION_CLEAR_ROLE_ID) {
+          await interaction.deferUpdate();
+          settings.setMentionSettings(interaction.guild.id, { mentionRoleId: undefined });
+          await interaction.editReply(buildMessagesPanel(interaction.guild, settings));
+          return;
+        }
+        if (interaction.customId === MENTION_EVERYONE_ID || interaction.customId === MENTION_HERE_ID) {
+          await interaction.deferUpdate();
+          const saved = settings.get(interaction.guild.id);
+          settings.setMentionSettings(interaction.guild.id, {
+            ...(interaction.customId === MENTION_EVERYONE_ID ? { allowEveryoneMention: !saved?.allowEveryoneMention } : {}),
+            ...(interaction.customId === MENTION_HERE_ID ? { allowHereMention: !saved?.allowHereMention } : {}),
+          });
+          await interaction.editReply(buildMessagesPanel(interaction.guild, settings));
+          return;
+        }
+
         if (interaction.customId === TEST_ANNOUNCEMENT_ID) {
           const saved = settings.get(interaction.guild.id);
           if (!saved?.announcementChannelId) {
@@ -314,6 +335,18 @@ export function createConfigPanelFeature(
           }
           await interaction.deferUpdate();
           settings.setAnnouncementChannel(interaction.guild.id, channel.id);
+          await interaction.editReply(buildMessagesPanel(interaction.guild, settings));
+          return;
+        }
+        if (interaction.customId === MENTION_ROLE_ID && interaction.isRoleSelectMenu()) {
+          const roleId = interaction.values[0];
+          const role = roleId ? interaction.guild.roles.cache.get(roleId) : undefined;
+          if (!role || role.managed || role.id === interaction.guild.id) {
+            await interaction.reply({ content: 'Escolha um cargo comum e não gerenciado pelo Discord.', flags: MessageFlags.Ephemeral });
+            return;
+          }
+          await interaction.deferUpdate();
+          settings.setMentionSettings(interaction.guild.id, { mentionRoleId: role.id });
           await interaction.editReply(buildMessagesPanel(interaction.guild, settings));
           return;
         }
@@ -517,6 +550,11 @@ function buildMessagesPanel(guild: Guild, settings: GuildSettingsRepository) {
     .setMinValues(1)
     .setMaxValues(1);
   if (saved?.announcementChannelId) select.setDefaultChannels(saved.announcementChannelId);
+  const mentionRoleSelect = new RoleSelectMenuBuilder()
+    .setCustomId(MENTION_ROLE_ID)
+    .setPlaceholder('Escolha o cargo a ser notificado')
+    .setMinValues(1)
+    .setMaxValues(1);
   const channelActions = new ActionRowBuilder<ButtonBuilder>();
   channelActions.addComponents(new ButtonBuilder().setCustomId(TEST_ANNOUNCEMENT_ID).setLabel('Enviar teste').setEmoji(customEmojis.mail).setStyle(ButtonStyle.Success), new ButtonBuilder().setCustomId(TEMPLATES_ID).setLabel('Templates').setEmoji(customEmojis.edit).setStyle(ButtonStyle.Primary));
   if (channel) channelActions.addComponents(new ButtonBuilder().setCustomId(CLEAR_ANNOUNCEMENT_CHANNEL_ID).setLabel('Remover canal').setEmoji(customEmojis.trash).setStyle(ButtonStyle.Danger));
@@ -533,8 +571,9 @@ function buildMessagesPanel(guild: Guild, settings: GuildSettingsRepository) {
         { name: `${customEmojis.sparkle} Estação reserva`, value: `${enabled(saved?.announceFallback)} Avisar quando o fallback for acionado`, inline: false },
         { name: `${customEmojis.info} Modo silencioso`, value: `${enabled(saved?.quietMode)} Ocultar notificações automáticas (comandos continuam respondendo)`, inline: false },
         { name: `${customEmojis.statistics} Painel ao vivo`, value: `${enabled(saved?.liveStatusEnabled)} Manter uma única mensagem com o estado atual da rádio`, inline: false },
+        { name: `${customEmojis.members} Menções autorizadas`, value: `${saved?.mentionRoleId ? `<@&${saved.mentionRoleId}>` : 'Nenhum cargo'} · @everyone: ${saved?.allowEveryoneMention ? 'ativo' : 'desativado'} · @here: ${saved?.allowHereMention ? 'ativo' : 'desativado'}`, inline: false },
       ).setFooter({ text: 'O bot valida permissões antes de salvar o canal.' }).setTimestamp()],
-    components: [new ActionRowBuilder<ChannelSelectMenuBuilder>().addComponents(select), new ActionRowBuilder<ButtonBuilder>().addComponents(toggle('announcePlayback', 'Início', saved?.announcePlayback), toggle('announceRecovery', 'Recuperação', saved?.announceRecovery)), new ActionRowBuilder<ButtonBuilder>().addComponents(toggle('announceFallback', 'Fallback', saved?.announceFallback), toggle('quietMode', 'Silencioso', saved?.quietMode)), new ActionRowBuilder<ButtonBuilder>().addComponents(toggle('liveStatusEnabled', 'Painel ao vivo', saved?.liveStatusEnabled)), channelActions],
+    components: [new ActionRowBuilder<ChannelSelectMenuBuilder>().addComponents(select), new ActionRowBuilder<ButtonBuilder>().addComponents(toggle('announcePlayback', 'Início', saved?.announcePlayback), toggle('announceRecovery', 'Recuperação', saved?.announceRecovery)), new ActionRowBuilder<ButtonBuilder>().addComponents(toggle('announceFallback', 'Fallback', saved?.announceFallback), toggle('quietMode', 'Silencioso', saved?.quietMode), toggle('liveStatusEnabled', 'Painel ao vivo', saved?.liveStatusEnabled), new ButtonBuilder().setCustomId(MENTION_EVERYONE_ID).setLabel(`@everyone ${saved?.allowEveryoneMention ? 'ativo' : 'off'}`).setStyle(saved?.allowEveryoneMention ? ButtonStyle.Danger : ButtonStyle.Secondary), new ButtonBuilder().setCustomId(MENTION_HERE_ID).setLabel(`@here ${saved?.allowHereMention ? 'ativo' : 'off'}`).setStyle(saved?.allowHereMention ? ButtonStyle.Danger : ButtonStyle.Secondary)), new ActionRowBuilder<RoleSelectMenuBuilder>().addComponents(mentionRoleSelect), channelActions],
   };
 }
 
