@@ -18,6 +18,10 @@ import type { logger as rootLogger } from '../shared/logger.js';
 import { createStationTranscoder } from './create-transcoder.js';
 
 type Logger = typeof rootLogger;
+export type RadioSessionEvent =
+  | { type: 'playback-start'; guildId: string; station: Station; channelId?: string | undefined }
+  | { type: 'fallback'; guildId: string; station: Station; channelId?: string | undefined }
+  | { type: 'voice-recovered'; guildId: string; station: Station; channelId?: string | undefined };
 
 export function calculateReconnectDelay(
   baseDelayMs: number,
@@ -55,9 +59,11 @@ export class VoiceConnectionSupersededError extends Error {
 }
 
 export class RadioSession {
+  readonly #guildIdValue: string;
   readonly #settings: RadioConfig['playback'];
   readonly #logger: Logger;
   readonly #player: AudioPlayer;
+  readonly #onEvent: ((event: RadioSessionEvent) => void) | undefined;
   #transcoder: prism.FFmpeg | undefined;
   #connection: VoiceConnection | undefined;
   #channel: VoiceBasedChannel | undefined;
@@ -78,8 +84,10 @@ export class RadioSession {
   #playbackStartedAt: number | undefined;
   #lastError: RadioStatusSnapshot['lastError'];
 
-  constructor(guildId: string, settings: RadioConfig['playback'], logger: Logger) {
+  constructor(guildId: string, settings: RadioConfig['playback'], logger: Logger, onEvent?: (event: RadioSessionEvent) => void) {
+    this.#guildIdValue = guildId;
     this.#settings = settings;
+    this.#onEvent = onEvent;
     this.#logger = logger.child({ guildId });
     this.#player = createAudioPlayer({
       behaviors: { noSubscriber: NoSubscriberBehavior.Play },
@@ -99,6 +107,9 @@ export class RadioSession {
         { stationId: this.#station?.id, recoveryAttempt: this.#reconnectAttempts },
         'Transmissão iniciada',
       );
+      if (this.#station && this.#reconnectAttempts === 0) {
+        this.#onEvent?.({ type: 'playback-start', guildId, station: this.#station, channelId: this.#channelId });
+      }
     });
     this.#player.on(AudioPlayerStatus.Idle, () => {
       this.#clearPlaybackStabilityTimer();
@@ -361,6 +372,7 @@ export class RadioSession {
         { stationId: this.#station.id },
         'Estação principal indisponível; ativando estação reserva',
       );
+      this.#onEvent?.({ type: 'fallback', guildId: this.#guildIdValue, station: this.#station, channelId: this.#channelId });
     }
     const station = this.#station;
     const delayMs = this.#reconnectDelay(this.#reconnectAttempts);
@@ -401,7 +413,9 @@ export class RadioSession {
     this.#assertCurrentConnection(generation);
     connection.subscribe(this.#player);
     this.#logger.info({ channelId: this.#channelId }, 'Conexão de voz recuperada');
+    if (this.#station) this.#onEvent?.({ type: 'voice-recovered', guildId: this.#guildIdValue, station: this.#station, channelId: this.#channelId });
   }
+
 
   #scheduleVoiceReconnect(): void {
     const channel = this.#channel;

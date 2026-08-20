@@ -2,12 +2,13 @@ import type { VoiceBasedChannel } from 'discord.js';
 
 import type { RadioConfig, Station } from '../config/schemas.js';
 import type { logger as rootLogger } from '../shared/logger.js';
-import { RadioSession, type RadioStatusSnapshot, type SessionSnapshot } from './radio-session.js';
+import { RadioSession, type RadioSessionEvent, type RadioStatusSnapshot, type SessionSnapshot } from './radio-session.js';
 
 type Logger = typeof rootLogger;
 
 export class RadioManager {
   readonly #sessions = new Map<string, RadioSession>();
+  #eventListener: ((event: RadioSessionEvent) => void) | undefined;
 
   constructor(
     private readonly config: RadioConfig,
@@ -64,10 +65,20 @@ export class RadioManager {
     this.#sessions.clear();
   }
 
+  onEvent(listener: (event: RadioSessionEvent) => void): void {
+    this.#eventListener = listener;
+  }
+
   #getOrCreate(guildId: string): RadioSession {
     const current = this.#sessions.get(guildId);
     if (current) return current;
-    const session = new RadioSession(guildId, this.config.playback, this.logger);
+    const session = new RadioSession(guildId, this.config.playback, this.logger, (event) => {
+      try {
+        this.#eventListener?.(event);
+      } catch (error) {
+        this.logger.warn({ err: error, eventType: event.type }, 'Listener de evento da rádio falhou');
+      }
+    });
     this.#sessions.set(guildId, session);
     return session;
   }

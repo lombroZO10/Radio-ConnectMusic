@@ -7,6 +7,7 @@ import {
   MessageFlags,
   type Interaction,
 } from 'discord.js';
+import { EmbedBuilder } from 'discord.js';
 
 import { config } from '../config/index.js';
 import type { RadioManager } from '../radio/radio-manager.js';
@@ -16,6 +17,8 @@ import { logger } from '../shared/logger.js';
 import type { DiscordCommand } from './command.js';
 import type { ComponentHandler } from './component.js';
 import { restoreConfiguredVoiceChannels } from './restore-voice-channels.js';
+import type { RadioSessionEvent } from '../radio/radio-session.js';
+import { customEmojis } from './custom-emojis.js';
 
 export function createDiscordClient(
   commands: readonly DiscordCommand[],
@@ -29,6 +32,10 @@ export function createDiscordClient(
   });
   const commandMap = new Collection<string, DiscordCommand>();
   for (const command of commands) commandMap.set(command.data.name, command);
+
+  radio.onEvent((event) => {
+    void sendRadioAnnouncement(client, settings, event);
+  });
 
   let shutdownTask: Promise<void> | undefined;
   const shutdown = (signal: string, exitCode = 0): Promise<void> => {
@@ -136,6 +143,36 @@ export function createDiscordClient(
   });
 
   return client;
+}
+
+async function sendRadioAnnouncement(
+  client: Client,
+  settings: GuildSettingsRepository,
+  event: RadioSessionEvent,
+): Promise<void> {
+  const saved = settings.get(event.guildId);
+  if (!saved?.announcementChannelId || saved.quietMode) return;
+  const enabled = event.type === 'playback-start'
+    ? saved.announcePlayback
+    : event.type === 'fallback'
+      ? saved.announceFallback
+      : saved.announceRecovery;
+  if (!enabled) return;
+  try {
+    const channel = await client.channels.fetch(saved.announcementChannelId);
+    if (!channel?.isTextBased() || !('send' in channel)) return;
+    const [emoji, title, description, color] = event.type === 'playback-start'
+      ? [customEmojis.music, 'Transmissão iniciada', `A rádio está transmitindo **${event.station.name}**.`, 0x22c55e]
+      : event.type === 'fallback'
+        ? [customEmojis.sparkle, 'Estação reserva acionada', `A estação principal apresentou instabilidade. A rádio mudou para **${event.station.name}**.`, 0xf59e0b]
+        : [customEmojis.audacity, 'Conexão recuperada', `A transmissão de **${event.station.name}** voltou ao canal de voz.`, 0x3b82f6];
+    await channel.send({
+      embeds: [new EmbedBuilder().setColor(color).setTitle(`${emoji} ${title}`).setDescription(description).setFooter({ text: config.branding.name }).setTimestamp()],
+      allowedMentions: { parse: [] },
+    });
+  } catch (error) {
+    logger.warn({ err: error, guildId: event.guildId, channelId: saved.announcementChannelId }, 'Não foi possível publicar notificação da rádio');
+  }
 }
 
 async function respondToInteractionError(interaction: Interaction, error: unknown): Promise<void> {
