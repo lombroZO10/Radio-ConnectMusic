@@ -150,6 +150,7 @@ export function createConfigPanelFeature(
             ...(current.notificationTemplates ?? {}),
             [kind]: { title: interaction.fields.getTextInputValue('title').trim(), description: interaction.fields.getTextInputValue('description').trim(), footer: interaction.fields.getTextInputValue('footer').trim(), color },
           });
+          settings.appendAudit(interaction.guild.id, { actorId: interaction.user.id, action: `edit-template:${kind}` });
           await interaction.reply({ content: `${customEmojis.green} Template atualizado.`, flags: MessageFlags.Ephemeral });
           return;
         }
@@ -256,6 +257,7 @@ export function createConfigPanelFeature(
         if (interaction.customId === CLEAR_ANNOUNCEMENT_CHANNEL_ID) {
           await interaction.deferUpdate();
           settings.clearAnnouncementChannel(interaction.guild.id);
+          settings.appendAudit(interaction.guild.id, { actorId: interaction.user.id, action: 'clear-announcement-channel' });
           await interaction.editReply(buildMessagesPanel(interaction.guild, settings));
           return;
         }
@@ -263,6 +265,7 @@ export function createConfigPanelFeature(
         if (interaction.customId === MENTION_CLEAR_ROLE_ID) {
           await interaction.deferUpdate();
           settings.setMentionSettings(interaction.guild.id, { mentionRoleId: undefined });
+          settings.appendAudit(interaction.guild.id, { actorId: interaction.user.id, action: 'clear-mention-role' });
           await interaction.editReply(buildMessagesPanel(interaction.guild, settings));
           return;
         }
@@ -273,6 +276,7 @@ export function createConfigPanelFeature(
             ...(interaction.customId === MENTION_EVERYONE_ID ? { allowEveryoneMention: !saved?.allowEveryoneMention } : {}),
             ...(interaction.customId === MENTION_HERE_ID ? { allowHereMention: !saved?.allowHereMention } : {}),
           });
+          settings.appendAudit(interaction.guild.id, { actorId: interaction.user.id, action: 'toggle-mention' });
           await interaction.editReply(buildMessagesPanel(interaction.guild, settings));
           return;
         }
@@ -310,6 +314,7 @@ export function createConfigPanelFeature(
             | 'liveStatusEnabled';
           const saved = settings.get(interaction.guild.id);
           settings.setMessagePreference(interaction.guild.id, preference, !saved?.[preference]);
+          settings.appendAudit(interaction.guild.id, { actorId: interaction.user.id, action: `message-preference:${preference}` });
           await interaction.editReply(buildMessagesPanel(interaction.guild, settings));
           return;
         }
@@ -393,6 +398,7 @@ export function createConfigPanelFeature(
           }
           await interaction.deferUpdate();
           settings.setAnnouncementChannel(interaction.guild.id, channel.id);
+          settings.appendAudit(interaction.guild.id, { actorId: interaction.user.id, action: `set-announcement-channel:${channel.id}` });
           await interaction.editReply(buildMessagesPanel(interaction.guild, settings));
           return;
         }
@@ -405,6 +411,7 @@ export function createConfigPanelFeature(
           }
           await interaction.deferUpdate();
           settings.setMentionSettings(interaction.guild.id, { mentionRoleId: role.id });
+          settings.appendAudit(interaction.guild.id, { actorId: interaction.user.id, action: 'set-mention-role' });
           await interaction.editReply(buildMessagesPanel(interaction.guild, settings));
           return;
         }
@@ -860,6 +867,7 @@ async function saveVoiceChannel(
 
   await radio.connect(voiceChannel);
   settings.setVoiceChannel(interaction.guild.id, voiceChannel.id);
+  settings.appendAudit(interaction.guild.id, { actorId: interaction.user.id, action: `set-voice-channel:${voiceChannel.id}` });
   await interaction.editReply(buildPanel(interaction.guild, settings, radio, catalog));
 }
 
@@ -896,6 +904,7 @@ async function saveDefaultStation(
   }
   await interaction.deferUpdate();
   settings.setDefaultStation(interaction.guild.id, station.id);
+  settings.appendAudit(interaction.guild.id, { actorId: interaction.user.id, action: `set-default-station:${station.id}` });
   await interaction.editReply(buildPanel(interaction.guild, settings, radio, catalog));
 }
 
@@ -932,6 +941,7 @@ async function saveFallbackStation(
   }
   await interaction.deferUpdate();
   settings.setFallbackStation(interaction.guild.id, station.id);
+  settings.appendAudit(interaction.guild.id, { actorId: interaction.user.id, action: `set-fallback-station:${station.id}` });
   await interaction.editReply(buildPanel(interaction.guild, settings, radio, catalog));
 }
 
@@ -978,5 +988,6 @@ async function savePermissionRole(
   const nextIds = [...currentIds, role.id];
   if (scope === 'control') settings.setControlRoles(interaction.guild.id, nextIds);
   else settings.setConfigRoles(interaction.guild.id, nextIds);
+  settings.appendAudit(interaction.guild.id, { actorId: interaction.user.id, action: `add-${scope}-role:${role.id}` });
   await interaction.editReply(buildPermissionsPanel(interaction.guild, settings));
 }
