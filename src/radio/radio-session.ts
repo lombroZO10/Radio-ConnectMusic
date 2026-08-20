@@ -19,9 +19,10 @@ import { createStationTranscoder } from './create-transcoder.js';
 
 type Logger = typeof rootLogger;
 export type RadioSessionEvent =
-  | { type: 'playback-start'; guildId: string; station: Station; channelId?: string | undefined }
-  | { type: 'fallback'; guildId: string; station: Station; channelId?: string | undefined }
-  | { type: 'voice-recovered'; guildId: string; station: Station; channelId?: string | undefined };
+  | { type: 'playback-start'; guildId: string; station: Station; channelId?: string | undefined; status?: RadioStatusSnapshot }
+  | { type: 'fallback'; guildId: string; station: Station; channelId?: string | undefined; status?: RadioStatusSnapshot }
+  | { type: 'voice-recovered'; guildId: string; station: Station; channelId?: string | undefined; status?: RadioStatusSnapshot }
+  | { type: 'playback-stop'; guildId: string; station?: Station | undefined; channelId?: string | undefined; status?: RadioStatusSnapshot };
 
 export function calculateReconnectDelay(
   baseDelayMs: number,
@@ -108,7 +109,7 @@ export class RadioSession {
         'Transmissão iniciada',
       );
       if (this.#station && this.#reconnectAttempts === 0) {
-        this.#onEvent?.({ type: 'playback-start', guildId, station: this.#station, channelId: this.#channelId });
+        this.#onEvent?.({ type: 'playback-start', guildId, station: this.#station, channelId: this.#channelId, status: this.statusSnapshot() });
       }
     });
     this.#player.on(AudioPlayerStatus.Idle, () => {
@@ -172,6 +173,8 @@ export class RadioSession {
   }
 
   stopPlayback(): void {
+    const previousStation = this.#station;
+    const previousChannelId = this.#channelId;
     this.#stoppedIntentionally = true;
     this.#playbackGeneration += 1;
     this.#clearReconnectTimer();
@@ -183,6 +186,7 @@ export class RadioSession {
     this.#fallbackActivated = false;
     this.#playbackStartedAt = undefined;
     this.#reconnectAttempts = 0;
+    this.#onEvent?.({ type: 'playback-stop', guildId: this.#guildIdValue, station: previousStation, channelId: previousChannelId, status: this.statusSnapshot() });
   }
 
   disconnect(): void {
@@ -372,7 +376,7 @@ export class RadioSession {
         { stationId: this.#station.id },
         'Estação principal indisponível; ativando estação reserva',
       );
-      this.#onEvent?.({ type: 'fallback', guildId: this.#guildIdValue, station: this.#station, channelId: this.#channelId });
+      this.#onEvent?.({ type: 'fallback', guildId: this.#guildIdValue, station: this.#station, channelId: this.#channelId, status: this.statusSnapshot() });
     }
     const station = this.#station;
     const delayMs = this.#reconnectDelay(this.#reconnectAttempts);
@@ -413,7 +417,7 @@ export class RadioSession {
     this.#assertCurrentConnection(generation);
     connection.subscribe(this.#player);
     this.#logger.info({ channelId: this.#channelId }, 'Conexão de voz recuperada');
-    if (this.#station) this.#onEvent?.({ type: 'voice-recovered', guildId: this.#guildIdValue, station: this.#station, channelId: this.#channelId });
+    if (this.#station) this.#onEvent?.({ type: 'voice-recovered', guildId: this.#guildIdValue, station: this.#station, channelId: this.#channelId, status: this.statusSnapshot() });
   }
 
 

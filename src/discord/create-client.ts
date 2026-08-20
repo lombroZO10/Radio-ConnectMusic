@@ -19,6 +19,9 @@ import type { ComponentHandler } from './component.js';
 import { restoreConfiguredVoiceChannels } from './restore-voice-channels.js';
 import type { RadioSessionEvent } from '../radio/radio-session.js';
 import { customEmojis } from './custom-emojis.js';
+import { NotificationQueue } from './notification-queue.js';
+
+const notificationQueue = new NotificationQueue();
 
 export function createDiscordClient(
   commands: readonly DiscordCommand[],
@@ -34,7 +37,7 @@ export function createDiscordClient(
   for (const command of commands) commandMap.set(command.data.name, command);
 
   radio.onEvent((event) => {
-    void sendRadioAnnouncement(client, settings, event);
+    sendRadioAnnouncement(client, settings, event);
   });
 
   let shutdownTask: Promise<void> | undefined;
@@ -145,31 +148,53 @@ export function createDiscordClient(
   return client;
 }
 
-async function sendRadioAnnouncement(
+function sendRadioAnnouncement(
+  client: Client,
+  settings: GuildSettingsRepository,
+  event: RadioSessionEvent,
+): void {
+  notificationQueue.enqueue(event.guildId, `${event.type}:${event.station?.id ?? 'none'}`, () => sendRadioAnnouncementNow(client, settings, event));
+}
+
+async function sendRadioAnnouncementNow(
   client: Client,
   settings: GuildSettingsRepository,
   event: RadioSessionEvent,
 ): Promise<void> {
   const saved = settings.get(event.guildId);
-  if (!saved?.announcementChannelId || saved.quietMode) return;
+  if (!saved?.announcementChannelId || (saved.quietMode && !saved.liveStatusEnabled)) return;
   const enabled = event.type === 'playback-start'
     ? saved.announcePlayback
     : event.type === 'fallback'
       ? saved.announceFallback
-      : saved.announceRecovery;
+      : event.type === 'voice-recovered'
+        ? saved.announceRecovery
+        : false;
   if (!enabled && !saved.liveStatusEnabled) return;
   try {
-    const channel = await client.channels.fetch(saved.announcementChannelId);
-    if (!channel?.isTextBased() || !('send' in channel)) return;
+    const channel = await client.channels.fetch(saved.announcementChannelId).catch(() => null);
+    if (!channel) {
+      settings.clearAnnouncementChannel(event.guildId);
+      logger.warn({ guildId: event.guildId, channelId: saved.announcementChannelId }, 'Canal de notificações removido; configuração limpa automaticamente');
+      return;
+    }
+    if (!channel.isTextBased() || !('send' in channel)) return;
+    const stationName = event.station?.name ?? 'Nenhuma estação';
     const [emoji, title, description, color] = event.type === 'playback-start'
-      ? [customEmojis.music, 'Transmissão iniciada', `A rádio está transmitindo **${event.station.name}**.`, 0x22c55e]
+      ? [customEmojis.music, 'Transmissão iniciada', `A rádio está transmitindo **${stationName}**.`, 0x22c55e]
       : event.type === 'fallback'
-        ? [customEmojis.sparkle, 'Estação reserva acionada', `A estação principal apresentou instabilidade. A rádio mudou para **${event.station.name}**.`, 0xf59e0b]
-        : [customEmojis.audacity, 'Conexão recuperada', `A transmissão de **${event.station.name}** voltou ao canal de voz.`, 0x3b82f6];
+        ? [customEmojis.sparkle, 'Estação reserva acionada', `A rádio mudou automaticamente para **${stationName}**.`, 0xf59e0b]
+        : event.type === 'voice-recovered'
+          ? [customEmojis.audacity, 'Conexão recuperada', `A transmissão de **${stationName}** voltou ao canal de voz.`, 0x3b82f6]
+          : [customEmojis.close, 'Transmissão encerrada', 'A rádio não está reproduzindo áudio neste momento.', 0x64748b];
+    const status = event.status;
+    const duration = status?.playbackStartedAt ? formatDuration(Date.now() - status.playbackStartedAt) : '—';
+    const genres = event.station?.genres.join(' • ') ?? '—';
+    const lastError = status?.lastError?.message ?? 'Nenhum erro registrado';
     const mentionContent = [saved.allowEveryoneMention ? '@everyone' : '', saved.allowHereMention ? '@here' : '', saved.mentionRoleId ? `<@&${saved.mentionRoleId}>` : ''].filter(Boolean).join(' ');
     const payload = {
       ...(mentionContent ? { content: mentionContent } : {}),
-      embeds: [new EmbedBuilder().setColor(color).setTitle(`${emoji} ${title}`).setDescription(description).addFields({ name: `${customEmojis.radio} Canal de voz`, value: event.channelId ? `<#${event.channelId}>` : 'Conectando', inline: true }).setFooter({ text: config.branding.name }).setTimestamp()],
+      embeds: [new EmbedBuilder().setColor(color).setTitle(`${emoji} ${title}`).setDescription(description).addFields({ name: `${customEmojis.radio} Canal de voz`, value: event.channelId ? `<#${event.channelId}>` : '—', inline: true }, { name: `${customEmojis.music} Gênero`, value: genres, inline: true }, { name: `${customEmojis.audacity} Áudio`, value: status?.audioStatus ?? 'idle', inline: true }, { name: `${customEmojis.loading} Duração`, value: duration, inline: true }, { name: `${customEmojis.info} Último erro`, value: lastError.slice(0, 1024), inline: false }).setFooter({ text: config.branding.name }).setTimestamp()],
       allowedMentions: { parse: [...(saved.allowEveryoneMention ? ['everyone' as const] : []), ...(saved.allowHereMention ? ['everyone' as const] : [])], roles: saved.mentionRoleId ? [saved.mentionRoleId] : [] },
     };
     if (saved.liveStatusEnabled && saved.liveStatusMessageId && 'messages' in channel) {
@@ -184,6 +209,14 @@ async function sendRadioAnnouncement(
   } catch (error) {
     logger.warn({ err: error, guildId: event.guildId, channelId: saved.announcementChannelId }, 'Não foi possível publicar notificação da rádio');
   }
+}
+
+function formatDuration(milliseconds: number): string {
+  const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+  return hours ? `${String(hours)}h ${String(minutes).padStart(2, '0')}m` : `${String(minutes)}m ${String(seconds).padStart(2, '0')}s`;
 }
 
 async function respondToInteractionError(interaction: Interaction, error: unknown): Promise<void> {
