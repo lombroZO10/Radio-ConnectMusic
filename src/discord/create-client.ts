@@ -96,7 +96,7 @@ export function createDiscordClient(
       await commandMap.get(interaction.commandName)?.autocomplete?.(interaction);
       return;
     }
-    if (interaction.isMessageComponent()) {
+    if (interaction.isMessageComponent() || interaction.isModalSubmit()) {
       const handler = componentHandlers.find((item) => item.canHandle(interaction.customId));
       if (handler) await handler.execute(interaction);
       return;

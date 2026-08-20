@@ -1,6 +1,8 @@
-import type { MessageComponentInteraction } from 'discord.js';
+import type { MessageComponentInteraction, ModalSubmitInteraction } from 'discord.js';
+
+export type ComponentInteraction = MessageComponentInteraction | ModalSubmitInteraction;
 
 export interface ComponentHandler {
   canHandle(customId: string): boolean;
-  execute(interaction: MessageComponentInteraction): Promise<void>;
+  execute(interaction: ComponentInteraction): Promise<void>;
 }

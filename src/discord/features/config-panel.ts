@@ -5,12 +5,15 @@ import {
   ChannelSelectMenuBuilder,
   ChannelType,
   EmbedBuilder,
+  ModalBuilder,
   InteractionContextType,
   MessageFlags,
   PermissionFlagsBits,
   RoleSelectMenuBuilder,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
+  TextInputBuilder,
+  TextInputStyle,
   SlashCommandBuilder,
   type Guild,
   type MessageComponentInteraction,
@@ -20,9 +23,9 @@ import {
 import { config } from '../../config/index.js';
 import type { RadioManager } from '../../radio/radio-manager.js';
 import type { StationCatalog } from '../../radio/station-catalog.js';
-import type { GuildSettingsRepository } from '../../settings/guild-settings.js';
+import type { GuildSettings, GuildSettingsRepository } from '../../settings/guild-settings.js';
 import type { DiscordCommand } from '../command.js';
-import type { ComponentHandler } from '../component.js';
+import type { ComponentHandler, ComponentInteraction } from '../component.js';
 import { brandColor } from '../embeds.js';
 import { canManageConfiguration } from '../permissions.js';
 import { customEmojis } from '../custom-emojis.js';
@@ -44,6 +47,10 @@ const MESSAGES_BACK_ID = `${CUSTOM_ID_PREFIX}messages-back`;
 const ANNOUNCEMENT_CHANNEL_ID = `${CUSTOM_ID_PREFIX}messages-channel`;
 const CLEAR_ANNOUNCEMENT_CHANNEL_ID = `${CUSTOM_ID_PREFIX}messages-channel-clear`;
 const TEST_ANNOUNCEMENT_ID = `${CUSTOM_ID_PREFIX}messages-test`;
+const TEMPLATES_ID = `${CUSTOM_ID_PREFIX}templates`;
+const TEMPLATES_BACK_ID = `${CUSTOM_ID_PREFIX}templates-back`;
+const TEMPLATE_EDIT_PREFIX = `${CUSTOM_ID_PREFIX}template-edit:`;
+const TEMPLATE_PREVIEW_PREFIX = `${CUSTOM_ID_PREFIX}template-preview:`;
 const MESSAGE_TOGGLE_PREFIX = `${CUSTOM_ID_PREFIX}messages-toggle:`;
 const CLEAR_VOICE_ID = `${CUSTOM_ID_PREFIX}voice-clear`;
 const CLEAR_VOICE_CONFIRM_ID = `${CUSTOM_ID_PREFIX}voice-clear-confirm`;
@@ -100,7 +107,7 @@ export function createConfigPanelFeature(
     componentHandler: {
       canHandle: (customId) => customId.startsWith(CUSTOM_ID_PREFIX),
 
-      async execute(interaction) {
+      async execute(interaction: ComponentInteraction) {
         if (!interaction.inGuild() || !interaction.guild) return;
         const member = await interaction.guild.members.fetch(interaction.user.id).catch(() => null);
         if (
@@ -114,6 +121,25 @@ export function createConfigPanelFeature(
             content: 'Você não tem permissão para alterar esta configuração.',
             flags: MessageFlags.Ephemeral,
           });
+          return;
+        }
+
+        if (interaction.isModalSubmit()) {
+          if (!interaction.customId.startsWith(TEMPLATE_EDIT_PREFIX)) return;
+          const kind = interaction.customId.slice(TEMPLATE_EDIT_PREFIX.length) as TemplateKind;
+          const colorText = interaction.fields.getTextInputValue('color').trim().replace(/^#/, '');
+          const color = Number.parseInt(colorText, 16);
+          if (!/^[0-9a-f]{6}$/i.test(colorText) || !Number.isInteger(color) || color > 0xffffff) {
+            await interaction.reply({ content: 'A cor deve estar no formato hexadecimal, por exemplo `5865F2`.', flags: MessageFlags.Ephemeral });
+            return;
+          }
+          const current = settings.get(interaction.guild.id);
+          if (!current) return;
+          settings.setNotificationTemplates(interaction.guild.id, {
+            ...(current.notificationTemplates ?? {}),
+            [kind]: { title: interaction.fields.getTextInputValue('title').trim(), description: interaction.fields.getTextInputValue('description').trim(), footer: interaction.fields.getTextInputValue('footer').trim(), color },
+          });
+          await interaction.reply({ content: `${customEmojis.green} Template atualizado.`, flags: MessageFlags.Ephemeral });
           return;
         }
 
@@ -138,6 +164,25 @@ export function createConfigPanelFeature(
 
         if (interaction.customId === MESSAGES_ID) {
           await interaction.update(buildMessagesPanel(interaction.guild, settings));
+          return;
+        }
+
+        if (interaction.customId === TEMPLATES_ID) {
+          await interaction.update(buildTemplatesPanel(interaction.guild, settings));
+          return;
+        }
+        if (interaction.customId === TEMPLATES_BACK_ID) {
+          await interaction.update(buildMessagesPanel(interaction.guild, settings));
+          return;
+        }
+        if (!interaction.isModalSubmit() && interaction.customId.startsWith(TEMPLATE_EDIT_PREFIX)) {
+          const kind = interaction.customId.slice(TEMPLATE_EDIT_PREFIX.length) as TemplateKind;
+          await interaction.showModal(templateModal(kind, settings.get(interaction.guild.id)?.notificationTemplates?.[kind]));
+          return;
+        }
+        if (interaction.customId.startsWith(TEMPLATE_PREVIEW_PREFIX)) {
+          const kind = interaction.customId.slice(TEMPLATE_PREVIEW_PREFIX.length) as TemplateKind;
+          await interaction.reply({ embeds: [templateEmbed(kind, settings.get(interaction.guild.id)?.notificationTemplates?.[kind])], flags: MessageFlags.Ephemeral });
           return;
         }
 
@@ -473,7 +518,7 @@ function buildMessagesPanel(guild: Guild, settings: GuildSettingsRepository) {
     .setMaxValues(1);
   if (saved?.announcementChannelId) select.setDefaultChannels(saved.announcementChannelId);
   const channelActions = new ActionRowBuilder<ButtonBuilder>();
-  channelActions.addComponents(new ButtonBuilder().setCustomId(TEST_ANNOUNCEMENT_ID).setLabel('Enviar teste').setEmoji(customEmojis.mail).setStyle(ButtonStyle.Success));
+  channelActions.addComponents(new ButtonBuilder().setCustomId(TEST_ANNOUNCEMENT_ID).setLabel('Enviar teste').setEmoji(customEmojis.mail).setStyle(ButtonStyle.Success), new ButtonBuilder().setCustomId(TEMPLATES_ID).setLabel('Templates').setEmoji(customEmojis.edit).setStyle(ButtonStyle.Primary));
   if (channel) channelActions.addComponents(new ButtonBuilder().setCustomId(CLEAR_ANNOUNCEMENT_CHANNEL_ID).setLabel('Remover canal').setEmoji(customEmojis.trash).setStyle(ButtonStyle.Danger));
   channelActions.addComponents(new ButtonBuilder().setCustomId(MESSAGES_BACK_ID).setLabel('Voltar ao painel').setEmoji('↩️').setStyle(ButtonStyle.Primary), new ButtonBuilder().setCustomId(CLOSE_ID).setLabel('Fechar painel').setEmoji(customEmojis.close).setStyle(ButtonStyle.Secondary));
   return {
@@ -490,6 +535,54 @@ function buildMessagesPanel(guild: Guild, settings: GuildSettingsRepository) {
         { name: `${customEmojis.statistics} Painel ao vivo`, value: `${enabled(saved?.liveStatusEnabled)} Manter uma única mensagem com o estado atual da rádio`, inline: false },
       ).setFooter({ text: 'O bot valida permissões antes de salvar o canal.' }).setTimestamp()],
     components: [new ActionRowBuilder<ChannelSelectMenuBuilder>().addComponents(select), new ActionRowBuilder<ButtonBuilder>().addComponents(toggle('announcePlayback', 'Início', saved?.announcePlayback), toggle('announceRecovery', 'Recuperação', saved?.announceRecovery)), new ActionRowBuilder<ButtonBuilder>().addComponents(toggle('announceFallback', 'Fallback', saved?.announceFallback), toggle('quietMode', 'Silencioso', saved?.quietMode)), new ActionRowBuilder<ButtonBuilder>().addComponents(toggle('liveStatusEnabled', 'Painel ao vivo', saved?.liveStatusEnabled)), channelActions],
+  };
+}
+
+type TemplateKind = 'playbackStart' | 'voiceRecovered' | 'fallbackActivated';
+const templateLabels: Record<TemplateKind, string> = {
+  playbackStart: 'Início da transmissão',
+  voiceRecovered: 'Conexão recuperada',
+  fallbackActivated: 'Estação reserva',
+};
+const defaultTemplates: Record<TemplateKind, { title: string; description: string; footer: string; color: number }> = {
+  playbackStart: { title: 'Transmissão iniciada', description: 'A rádio está transmitindo **{station}**.', footer: config.branding.name, color: 0x22c55e },
+  voiceRecovered: { title: 'Conexão recuperada', description: 'A transmissão de **{station}** voltou ao canal de voz.', footer: config.branding.name, color: 0x3b82f6 },
+  fallbackActivated: { title: 'Estação reserva acionada', description: 'A rádio mudou automaticamente para **{station}**.', footer: config.branding.name, color: 0xf59e0b },
+};
+
+function getTemplate(kind: TemplateKind, templates?: GuildSettings['notificationTemplates']) {
+  return { ...defaultTemplates[kind], ...(templates?.[kind] ?? {}) };
+}
+
+// discord.js currently marks the modal text-input builder API as deprecated while
+// the replacement label API is still rolling out; keep this isolated for compatibility.
+/* eslint-disable @typescript-eslint/no-deprecated */
+function templateModal(kind: TemplateKind, saved?: { title: string; description: string; footer: string; color: number }) {
+  const template = saved ?? defaultTemplates[kind];
+  return new ModalBuilder().setCustomId(`${TEMPLATE_EDIT_PREFIX}${kind}`).setTitle(`Editar: ${templateLabels[kind]}`).addComponents(
+    new ActionRowBuilder<TextInputBuilder>().addComponents(new TextInputBuilder().setCustomId('title').setLabel('Título').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(256).setValue(template.title)),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(new TextInputBuilder().setCustomId('description').setLabel('Descrição').setStyle(TextInputStyle.Paragraph).setRequired(true).setMaxLength(4000).setValue(template.description)),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(new TextInputBuilder().setCustomId('footer').setLabel('Rodapé').setStyle(TextInputStyle.Short).setRequired(false).setMaxLength(2048).setValue(template.footer)),
+    new ActionRowBuilder<TextInputBuilder>().addComponents(new TextInputBuilder().setCustomId('color').setLabel('Cor hexadecimal (ex.: 5865F2)').setStyle(TextInputStyle.Short).setRequired(true).setMaxLength(6).setValue(template.color.toString(16).padStart(6, '0'))),
+  );
+}
+/* eslint-enable @typescript-eslint/no-deprecated */
+
+function templateEmbed(kind: TemplateKind, saved?: { title: string; description: string; footer: string; color: number }) {
+  const template = saved ?? defaultTemplates[kind];
+  return new EmbedBuilder().setColor(template.color).setTitle(`${customEmojis.mail} ${template.title}`).setDescription(template.description.replaceAll('{station}', 'Hunter Sertanejo')).setFooter({ text: template.footer || config.branding.name }).setTimestamp();
+}
+
+function buildTemplatesPanel(guild: Guild, settings: GuildSettingsRepository) {
+  const saved = settings.get(guild.id);
+  const rows = (Object.keys(templateLabels) as TemplateKind[]).map((kind) => new ActionRowBuilder<ButtonBuilder>().addComponents(
+    new ButtonBuilder().setCustomId(`${TEMPLATE_EDIT_PREFIX}${kind}`).setLabel(`Editar ${templateLabels[kind]}`).setEmoji(customEmojis.edit).setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`${TEMPLATE_PREVIEW_PREFIX}${kind}`).setLabel('Pré-visualizar').setEmoji(customEmojis.search).setStyle(ButtonStyle.Secondary),
+  ));
+  rows.push(new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(TEMPLATES_BACK_ID).setLabel('Voltar às mensagens').setEmoji('↩️').setStyle(ButtonStyle.Primary), new ButtonBuilder().setCustomId(CLOSE_ID).setLabel('Fechar painel').setEmoji(customEmojis.close).setStyle(ButtonStyle.Secondary)));
+  return {
+    embeds: [new EmbedBuilder().setColor(brandColor).setTitle(`${customEmojis.edit} Editor de mensagens`).setDescription('Personalize cada evento da rádio. Use `{station}` para inserir automaticamente o nome da estação.').addFields((Object.keys(templateLabels) as TemplateKind[]).map((kind) => ({ name: templateLabels[kind], value: getTemplate(kind, saved?.notificationTemplates).title, inline: true }))).setTimestamp()],
+    components: rows,
   };
 }
 

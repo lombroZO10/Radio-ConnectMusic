@@ -1,5 +1,18 @@
 import { z } from 'zod';
 
+const notificationTemplateSchema = z.object({
+  title: z.string().min(1).max(256),
+  description: z.string().min(1).max(4000),
+  footer: z.string().max(2048),
+  color: z.number().int().min(0).max(0xffffff),
+});
+
+export const notificationTemplatesSchema = z.object({
+  playbackStart: notificationTemplateSchema.optional(),
+  voiceRecovered: notificationTemplateSchema.optional(),
+  fallbackActivated: notificationTemplateSchema.optional(),
+});
+
 export const guildSettingsSchema = z.object({
   guildId: z.string().regex(/^\d+$/),
   voiceChannelId: z.string().regex(/^\d+$/),
@@ -31,6 +44,10 @@ export const guildSettingsSchema = z.object({
   quietMode: z.boolean().optional(),
   liveStatusEnabled: z.boolean().optional(),
   liveStatusMessageId: z.string().regex(/^\d+$/).optional(),
+  notificationTemplates: notificationTemplatesSchema.optional(),
+  mentionRoleId: z.string().regex(/^\d+$/).optional(),
+  allowEveryoneMention: z.boolean().optional(),
+  allowHereMention: z.boolean().optional(),
 });
 
 export const guildSettingsFileSchema = z.object({
@@ -55,6 +72,8 @@ export interface GuildSettingsRepository {
   clearAnnouncementChannel(guildId: string): void;
   setMessagePreference(guildId: string, preference: 'announcePlayback' | 'announceRecovery' | 'announceFallback' | 'quietMode' | 'liveStatusEnabled', enabled: boolean): void;
   setLiveStatusMessage(guildId: string, messageId: string | undefined): void;
+  setNotificationTemplates(guildId: string, templates: GuildSettings['notificationTemplates']): void;
+  setMentionSettings(guildId: string, settings: Pick<GuildSettings, 'mentionRoleId' | 'allowEveryoneMention' | 'allowHereMention'>): void;
   setStation(guildId: string, stationId: string): void;
   clearStation(guildId: string): void;
 }

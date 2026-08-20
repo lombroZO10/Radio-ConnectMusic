@@ -113,6 +113,14 @@ export class JsonGuildSettingsRepository implements GuildSettingsRepository {
     this.#updateWith(guildId, { liveStatusMessageId: messageId });
   }
 
+  setNotificationTemplates(guildId: string, templates: GuildSettings['notificationTemplates']): void {
+    this.#updateWith(guildId, { notificationTemplates: templates });
+  }
+
+  setMentionSettings(guildId: string, mentionSettings: Pick<GuildSettings, 'mentionRoleId' | 'allowEveryoneMention' | 'allowHereMention'>): void {
+    this.#updateWith(guildId, mentionSettings);
+  }
+
   setStation(guildId: string, stationId: string): void {
     const current = this.#settings.get(guildId);
     if (!current) throw new Error('Configure o canal de voz antes de salvar a estação.');
