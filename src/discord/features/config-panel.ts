@@ -39,6 +39,11 @@ const CONFIG_ROLE_ID = `${CUSTOM_ID_PREFIX}permissions-config-role`;
 const CLEAR_CONTROL_ROLES_ID = `${CUSTOM_ID_PREFIX}permissions-control-clear`;
 const CLEAR_CONFIG_ROLES_ID = `${CUSTOM_ID_PREFIX}permissions-config-clear`;
 const PUBLIC_CONTROL_ID = `${CUSTOM_ID_PREFIX}permissions-public-toggle`;
+const MESSAGES_ID = `${CUSTOM_ID_PREFIX}messages`;
+const MESSAGES_BACK_ID = `${CUSTOM_ID_PREFIX}messages-back`;
+const ANNOUNCEMENT_CHANNEL_ID = `${CUSTOM_ID_PREFIX}messages-channel`;
+const CLEAR_ANNOUNCEMENT_CHANNEL_ID = `${CUSTOM_ID_PREFIX}messages-channel-clear`;
+const MESSAGE_TOGGLE_PREFIX = `${CUSTOM_ID_PREFIX}messages-toggle:`;
 const CLEAR_VOICE_ID = `${CUSTOM_ID_PREFIX}voice-clear`;
 const CLEAR_VOICE_CONFIRM_ID = `${CUSTOM_ID_PREFIX}voice-clear-confirm`;
 const CLEAR_VOICE_CANCEL_ID = `${CUSTOM_ID_PREFIX}voice-clear-cancel`;
@@ -130,6 +135,36 @@ export function createConfigPanelFeature(
           return;
         }
 
+        if (interaction.customId === MESSAGES_ID) {
+          await interaction.update(buildMessagesPanel(interaction.guild, settings));
+          return;
+        }
+
+        if (interaction.customId === MESSAGES_BACK_ID) {
+          await interaction.update(buildPanel(interaction.guild, settings, radio, catalog));
+          return;
+        }
+
+        if (interaction.customId === CLEAR_ANNOUNCEMENT_CHANNEL_ID) {
+          await interaction.deferUpdate();
+          settings.clearAnnouncementChannel(interaction.guild.id);
+          await interaction.editReply(buildMessagesPanel(interaction.guild, settings));
+          return;
+        }
+
+        if (interaction.customId.startsWith(MESSAGE_TOGGLE_PREFIX)) {
+          await interaction.deferUpdate();
+          const preference = interaction.customId.slice(MESSAGE_TOGGLE_PREFIX.length) as
+            | 'announcePlayback'
+            | 'announceRecovery'
+            | 'announceFallback'
+            | 'quietMode';
+          const saved = settings.get(interaction.guild.id);
+          settings.setMessagePreference(interaction.guild.id, preference, !saved?.[preference]);
+          await interaction.editReply(buildMessagesPanel(interaction.guild, settings));
+          return;
+        }
+
         if (interaction.customId === PERMISSIONS_BACK_ID) {
           await interaction.update(buildPanel(interaction.guild, settings, radio, catalog));
           return;
@@ -192,6 +227,24 @@ export function createConfigPanelFeature(
 
         if (interaction.customId === FALLBACK_STATION_ID && interaction.isStringSelectMenu()) {
           await saveFallbackStation(interaction, settings, radio, catalog);
+          return;
+        }
+
+        if (interaction.customId === ANNOUNCEMENT_CHANNEL_ID && interaction.isChannelSelectMenu()) {
+          const channelId = interaction.values[0];
+          const channel = channelId ? await interaction.guild.channels.fetch(channelId) : null;
+          if (!channel || (channel.type !== ChannelType.GuildText && channel.type !== ChannelType.GuildAnnouncement)) {
+            await interaction.reply({ content: 'Escolha um canal de texto válido.', flags: MessageFlags.Ephemeral });
+            return;
+          }
+          const permissions = interaction.guild.members.me ? channel.permissionsFor(interaction.guild.members.me) : undefined;
+          if (!permissions?.has([PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.EmbedLinks])) {
+            await interaction.reply({ content: 'Preciso de **Ver canal**, **Enviar mensagens** e **Inserir links** nesse canal.', flags: MessageFlags.Ephemeral });
+            return;
+          }
+          await interaction.deferUpdate();
+          settings.setAnnouncementChannel(interaction.guild.id, channel.id);
+          await interaction.editReply(buildMessagesPanel(interaction.guild, settings));
           return;
         }
 
@@ -338,9 +391,15 @@ function buildPanel(
       .setLabel('Fechar painel')
       .setEmoji(customEmojis.close)
       .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(MESSAGES_ID)
+      .setLabel('Mensagens')
+      .setEmoji(customEmojis.mail)
+      .setStyle(ButtonStyle.Primary),
   );
+  const cleanupRow = new ActionRowBuilder<ButtonBuilder>();
   if (fallbackStation) {
-    actionsRow.addComponents(
+    cleanupRow.addComponents(
       new ButtonBuilder()
         .setCustomId(CLEAR_FALLBACK_ID)
         .setLabel('Remover reserva')
@@ -349,7 +408,7 @@ function buildPanel(
     );
   }
   if (saved) {
-    actionsRow.addComponents(
+    cleanupRow.addComponents(
       new ButtonBuilder()
         .setCustomId(CLEAR_VOICE_ID)
         .setLabel('Remover canal')
@@ -367,7 +426,43 @@ function buildPanel(
 
   return {
     embeds: [embed],
-    components: [channelRow, defaultStationRow, fallbackStationRow, actionsRow],
+    components: [channelRow, defaultStationRow, fallbackStationRow, actionsRow, ...(cleanupRow.components.length ? [cleanupRow] : [])],
+  };
+}
+
+function buildMessagesPanel(guild: Guild, settings: GuildSettingsRepository) {
+  const saved = settings.get(guild.id);
+  const channel = saved?.announcementChannelId ? guild.channels.cache.get(saved.announcementChannelId) : undefined;
+  const channelValue = channel ? `<#${channel.id}>` : `${customEmojis.white} Não configurado`;
+  const enabled = (value?: boolean) => value ? customEmojis.green : customEmojis.white;
+  const toggle = (id: string, label: string, value?: boolean) => new ButtonBuilder()
+    .setCustomId(`${MESSAGE_TOGGLE_PREFIX}${id}`)
+    .setLabel(`${value ? 'Ativo' : 'Desativado'} · ${label}`)
+    .setEmoji(enabled(value))
+    .setStyle(value ? ButtonStyle.Success : ButtonStyle.Secondary);
+  const select = new ChannelSelectMenuBuilder()
+    .setCustomId(ANNOUNCEMENT_CHANNEL_ID)
+    .setPlaceholder('Escolha o canal das notificações')
+    .setChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+    .setMinValues(1)
+    .setMaxValues(1);
+  if (saved?.announcementChannelId) select.setDefaultChannels(saved.announcementChannelId);
+  const channelActions = new ActionRowBuilder<ButtonBuilder>();
+  if (channel) channelActions.addComponents(new ButtonBuilder().setCustomId(CLEAR_ANNOUNCEMENT_CHANNEL_ID).setLabel('Remover canal').setEmoji(customEmojis.trash).setStyle(ButtonStyle.Danger));
+  channelActions.addComponents(new ButtonBuilder().setCustomId(MESSAGES_BACK_ID).setLabel('Voltar ao painel').setEmoji('↩️').setStyle(ButtonStyle.Primary), new ButtonBuilder().setCustomId(CLOSE_ID).setLabel('Fechar painel').setEmoji(customEmojis.close).setStyle(ButtonStyle.Secondary));
+  return {
+    embeds: [new EmbedBuilder()
+      .setColor(brandColor)
+      .setTitle(`${customEmojis.mail} Mensagens e interface`)
+      .setDescription('Defina como a Radio Connect Music informa eventos no servidor. Tudo é salvo automaticamente por servidor.')
+      .addFields(
+        { name: `${customEmojis.mail} Canal de notificações`, value: channelValue, inline: false },
+        { name: `${customEmojis.music} Início da transmissão`, value: `${enabled(saved?.announcePlayback)} Avisar quando uma estação começar`, inline: false },
+        { name: `${customEmojis.audacity} Recuperação`, value: `${enabled(saved?.announceRecovery)} Avisar quando a conexão for recuperada`, inline: false },
+        { name: `${customEmojis.sparkle} Estação reserva`, value: `${enabled(saved?.announceFallback)} Avisar quando o fallback for acionado`, inline: false },
+        { name: `${customEmojis.info} Modo silencioso`, value: `${enabled(saved?.quietMode)} Ocultar notificações automáticas (comandos continuam respondendo)`, inline: false },
+      ).setFooter({ text: 'O bot valida permissões antes de salvar o canal.' }).setTimestamp()],
+    components: [new ActionRowBuilder<ChannelSelectMenuBuilder>().addComponents(select), new ActionRowBuilder<ButtonBuilder>().addComponents(toggle('announcePlayback', 'Início', saved?.announcePlayback), toggle('announceRecovery', 'Recuperação', saved?.announceRecovery)), new ActionRowBuilder<ButtonBuilder>().addComponents(toggle('announceFallback', 'Fallback', saved?.announceFallback), toggle('quietMode', 'Silencioso', saved?.quietMode)), channelActions],
   };
 }
 

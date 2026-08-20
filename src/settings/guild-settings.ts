@@ -24,6 +24,11 @@ export const guildSettingsSchema = z.object({
   controlRoleIds: z.array(z.string().regex(/^\d+$/)).max(10).optional(),
   configRoleIds: z.array(z.string().regex(/^\d+$/)).max(10).optional(),
   publicControlEnabled: z.boolean().optional(),
+  announcementChannelId: z.string().regex(/^\d+$/).optional(),
+  announcePlayback: z.boolean().optional(),
+  announceRecovery: z.boolean().optional(),
+  announceFallback: z.boolean().optional(),
+  quietMode: z.boolean().optional(),
 });
 
 export const guildSettingsFileSchema = z.object({
@@ -44,6 +49,9 @@ export interface GuildSettingsRepository {
   setControlRoles(guildId: string, roleIds: string[]): void;
   setConfigRoles(guildId: string, roleIds: string[]): void;
   setPublicControlEnabled(guildId: string, enabled: boolean): void;
+  setAnnouncementChannel(guildId: string, channelId: string): void;
+  clearAnnouncementChannel(guildId: string): void;
+  setMessagePreference(guildId: string, preference: 'announcePlayback' | 'announceRecovery' | 'announceFallback' | 'quietMode', enabled: boolean): void;
   setStation(guildId: string, stationId: string): void;
   clearStation(guildId: string): void;
 }

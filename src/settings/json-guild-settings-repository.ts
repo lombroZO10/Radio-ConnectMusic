@@ -43,6 +43,11 @@ export class JsonGuildSettingsRepository implements GuildSettingsRepository {
       ...(current?.publicControlEnabled !== undefined
         ? { publicControlEnabled: current.publicControlEnabled }
         : {}),
+      ...(current?.announcementChannelId ? { announcementChannelId: current.announcementChannelId } : {}),
+      ...(current?.announcePlayback !== undefined ? { announcePlayback: current.announcePlayback } : {}),
+      ...(current?.announceRecovery !== undefined ? { announceRecovery: current.announceRecovery } : {}),
+      ...(current?.announceFallback !== undefined ? { announceFallback: current.announceFallback } : {}),
+      ...(current?.quietMode !== undefined ? { quietMode: current.quietMode } : {}),
     });
   }
 
@@ -73,17 +78,7 @@ export class JsonGuildSettingsRepository implements GuildSettingsRepository {
   clearFallbackStation(guildId: string): void {
     const current = this.#settings.get(guildId);
     if (!current?.fallbackStationId) return;
-    this.#commit(guildId, {
-      guildId: current.guildId,
-      voiceChannelId: current.voiceChannelId,
-      ...(current.stationId ? { stationId: current.stationId } : {}),
-      ...(current.defaultStationId ? { defaultStationId: current.defaultStationId } : {}),
-      ...(current.controlRoleIds ? { controlRoleIds: current.controlRoleIds } : {}),
-      ...(current.configRoleIds ? { configRoleIds: current.configRoleIds } : {}),
-      ...(current.publicControlEnabled !== undefined
-        ? { publicControlEnabled: current.publicControlEnabled }
-        : {}),
-    });
+    this.#commit(guildId, { ...current, fallbackStationId: undefined });
   }
 
   setControlRoles(guildId: string, roleIds: string[]): void {
@@ -98,6 +93,20 @@ export class JsonGuildSettingsRepository implements GuildSettingsRepository {
     this.#updateWith(guildId, { publicControlEnabled: enabled });
   }
 
+  setAnnouncementChannel(guildId: string, channelId: string): void {
+    this.#updateWith(guildId, { announcementChannelId: channelId });
+  }
+
+  clearAnnouncementChannel(guildId: string): void {
+    const current = this.#settings.get(guildId);
+    if (!current?.announcementChannelId) return;
+    this.#commit(guildId, { ...current, announcementChannelId: undefined });
+  }
+
+  setMessagePreference(guildId: string, preference: 'announcePlayback' | 'announceRecovery' | 'announceFallback' | 'quietMode', enabled: boolean): void {
+    this.#updateWith(guildId, { [preference]: enabled });
+  }
+
   setStation(guildId: string, stationId: string): void {
     const current = this.#settings.get(guildId);
     if (!current) throw new Error('Configure o canal de voz antes de salvar a estação.');
@@ -107,17 +116,7 @@ export class JsonGuildSettingsRepository implements GuildSettingsRepository {
   clearStation(guildId: string): void {
     const current = this.#settings.get(guildId);
     if (!current?.stationId) return;
-    this.#commit(guildId, {
-      guildId: current.guildId,
-      voiceChannelId: current.voiceChannelId,
-      ...(current.defaultStationId ? { defaultStationId: current.defaultStationId } : {}),
-      ...(current.fallbackStationId ? { fallbackStationId: current.fallbackStationId } : {}),
-      ...(current.controlRoleIds ? { controlRoleIds: current.controlRoleIds } : {}),
-      ...(current.configRoleIds ? { configRoleIds: current.configRoleIds } : {}),
-      ...(current.publicControlEnabled !== undefined
-        ? { publicControlEnabled: current.publicControlEnabled }
-        : {}),
-    });
+    this.#commit(guildId, { ...current, stationId: undefined });
   }
 
   #updateWith(guildId: string, patch: Partial<GuildSettings>): void {
