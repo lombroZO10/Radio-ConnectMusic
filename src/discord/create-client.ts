@@ -181,13 +181,24 @@ async function sendRadioAnnouncementNow(
     }
     if (!channel.isTextBased() || !('send' in channel)) return;
     const stationName = event.station?.name ?? 'Nenhuma estação';
-    const [emoji, title, description, color] = event.type === 'playback-start'
+    const template = event.type === 'playback-start'
+      ? saved.notificationTemplates?.playbackStart
+      : event.type === 'fallback'
+        ? saved.notificationTemplates?.fallbackActivated
+        : event.type === 'voice-recovered'
+          ? saved.notificationTemplates?.voiceRecovered
+          : undefined;
+    const [emoji, defaultTitle, defaultDescription, defaultColor] = event.type === 'playback-start'
       ? [customEmojis.music, 'Transmissão iniciada', `A rádio está transmitindo **${stationName}**.`, 0x22c55e]
       : event.type === 'fallback'
         ? [customEmojis.sparkle, 'Estação reserva acionada', `A rádio mudou automaticamente para **${stationName}**.`, 0xf59e0b]
         : event.type === 'voice-recovered'
           ? [customEmojis.audacity, 'Conexão recuperada', `A transmissão de **${stationName}** voltou ao canal de voz.`, 0x3b82f6]
           : [customEmojis.close, 'Transmissão encerrada', 'A rádio não está reproduzindo áudio neste momento.', 0x64748b];
+    const title = (template?.title ?? defaultTitle).replaceAll('{station}', stationName);
+    const description = (template?.description ?? defaultDescription).replaceAll('{station}', stationName);
+    const color = template?.color ?? defaultColor;
+    const footer = template?.footer ?? config.branding.name;
     const status = event.status;
     const duration = status?.playbackStartedAt ? formatDuration(Date.now() - status.playbackStartedAt) : '—';
     const genres = event.station?.genres.join(' • ') ?? '—';
@@ -195,7 +206,7 @@ async function sendRadioAnnouncementNow(
     const mentionContent = [saved.allowEveryoneMention ? '@everyone' : '', saved.allowHereMention ? '@here' : '', saved.mentionRoleId ? `<@&${saved.mentionRoleId}>` : ''].filter(Boolean).join(' ');
     const payload = {
       ...(mentionContent ? { content: mentionContent } : {}),
-      embeds: [new EmbedBuilder().setColor(color).setTitle(`${emoji} ${title}`).setDescription(description).addFields({ name: `${customEmojis.radio} Canal de voz`, value: event.channelId ? `<#${event.channelId}>` : '—', inline: true }, { name: `${customEmojis.music} Gênero`, value: genres, inline: true }, { name: `${customEmojis.audacity} Áudio`, value: status?.audioStatus ?? 'idle', inline: true }, { name: `${customEmojis.loading} Duração`, value: duration, inline: true }, { name: `${customEmojis.info} Último erro`, value: lastError.slice(0, 1024), inline: false }).setFooter({ text: config.branding.name }).setTimestamp()],
+      embeds: [new EmbedBuilder().setColor(color).setTitle(`${emoji} ${title}`).setDescription(description).addFields({ name: `${customEmojis.radio} Canal de voz`, value: event.channelId ? `<#${event.channelId}>` : '—', inline: true }, { name: `${customEmojis.music} Gênero`, value: genres, inline: true }, { name: `${customEmojis.audacity} Áudio`, value: status?.audioStatus ?? 'idle', inline: true }, { name: `${customEmojis.loading} Duração`, value: duration, inline: true }, { name: `${customEmojis.info} Último erro`, value: lastError.slice(0, 1024), inline: false }).setFooter({ text: footer }).setTimestamp()],
       allowedMentions: { parse: saved.allowEveryoneMention || saved.allowHereMention ? ['everyone' as const] : [], roles: saved.mentionRoleId ? [saved.mentionRoleId] : [] },
     };
     if (saved.liveStatusEnabled && saved.liveStatusMessageId && 'messages' in channel) {

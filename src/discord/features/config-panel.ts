@@ -232,7 +232,8 @@ export function createConfigPanelFeature(
         if (interaction.customId === MAINTENANCE_RESET_ID) {
           await interaction.deferUpdate();
           for (const preference of ['announcePlayback', 'announceRecovery', 'announceFallback', 'quietMode', 'liveStatusEnabled'] as const) settings.setMessagePreference(interaction.guild.id, preference, false);
-          settings.setMentionSettings(interaction.guild.id, { allowEveryoneMention: false, allowHereMention: false });
+          settings.setMentionSettings(interaction.guild.id, { mentionRoleId: undefined, allowEveryoneMention: false, allowHereMention: false });
+          settings.setLiveStatusMessage(interaction.guild.id, undefined);
           settings.setNotificationTemplates(interaction.guild.id, undefined);
           settings.appendAudit(interaction.guild.id, { actorId: interaction.user.id, action: 'reset-message-settings' });
           await interaction.editReply(buildMaintenancePanel(interaction.guild, settings));
@@ -328,6 +329,7 @@ export function createConfigPanelFeature(
           await interaction.deferUpdate();
           const saved = settings.get(interaction.guild.id);
           settings.setPublicControlEnabled(interaction.guild.id, !saved?.publicControlEnabled);
+          settings.appendAudit(interaction.guild.id, { actorId: interaction.user.id, action: 'toggle-public-control' });
           await interaction.editReply(buildPermissionsPanel(interaction.guild, settings));
           return;
         }
@@ -339,8 +341,10 @@ export function createConfigPanelFeature(
           await interaction.deferUpdate();
           if (interaction.customId === CLEAR_CONTROL_ROLES_ID) {
             settings.setControlRoles(interaction.guild.id, []);
+            settings.appendAudit(interaction.guild.id, { actorId: interaction.user.id, action: 'clear-control-roles' });
           } else {
             settings.setConfigRoles(interaction.guild.id, []);
+            settings.appendAudit(interaction.guild.id, { actorId: interaction.user.id, action: 'clear-config-roles' });
           }
           await interaction.editReply(buildPermissionsPanel(interaction.guild, settings));
           return;
@@ -362,6 +366,7 @@ export function createConfigPanelFeature(
           radio.stop(interaction.guild.id);
           radio.disconnect(interaction.guild.id);
           settings.clearVoiceChannel(interaction.guild.id);
+          settings.appendAudit(interaction.guild.id, { actorId: interaction.user.id, action: 'clear-voice-channel' });
           await interaction.editReply({
             content: `${customEmojis.green} Canal de voz removido. A rádio não se conectará automaticamente neste servidor.`,
             ...buildPanel(interaction.guild, settings, radio, catalog),
@@ -429,6 +434,7 @@ export function createConfigPanelFeature(
         if (interaction.customId === CLEAR_FALLBACK_ID) {
           await interaction.deferUpdate();
           settings.clearFallbackStation(interaction.guild.id);
+          settings.appendAudit(interaction.guild.id, { actorId: interaction.user.id, action: 'clear-fallback-station' });
           await interaction.editReply(buildPanel(interaction.guild, settings, radio, catalog));
         }
       },
