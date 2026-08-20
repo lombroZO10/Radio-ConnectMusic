@@ -176,6 +176,7 @@ async function sendRadioAnnouncementNow(
     if (!channel) {
       settings.clearAnnouncementChannel(event.guildId);
       logger.warn({ guildId: event.guildId, channelId: saved.announcementChannelId }, 'Canal de notificações removido; configuração limpa automaticamente');
+      await notifyChannelRecovery(client, event.guildId);
       return;
     }
     if (!channel.isTextBased() || !('send' in channel)) return;
@@ -209,6 +210,13 @@ async function sendRadioAnnouncementNow(
   } catch (error) {
     logger.warn({ err: error, guildId: event.guildId, channelId: saved.announcementChannelId }, 'Não foi possível publicar notificação da rádio');
   }
+}
+
+async function notifyChannelRecovery(client: Client, guildId: string): Promise<void> {
+  const guild = client.guilds.cache.get(guildId);
+  const fallback = guild?.systemChannel ?? guild?.channels.cache.find((channel) => channel.isTextBased() && 'send' in channel);
+  if (!fallback || !fallback.isTextBased() || !('send' in fallback)) return;
+  await fallback.send({ content: `${customEmojis.info} O canal de notificações da rádio não existe mais. A configuração foi limpa; um administrador deve escolher outro canal em \`/config\`.`, allowedMentions: { parse: [] } }).catch(() => undefined);
 }
 
 function formatDuration(milliseconds: number): string {
