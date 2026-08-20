@@ -182,7 +182,8 @@ export function createConfigPanelFeature(
             | 'announcePlayback'
             | 'announceRecovery'
             | 'announceFallback'
-            | 'quietMode';
+            | 'quietMode'
+            | 'liveStatusEnabled';
           const saved = settings.get(interaction.guild.id);
           settings.setMessagePreference(interaction.guild.id, preference, !saved?.[preference]);
           await interaction.editReply(buildMessagesPanel(interaction.guild, settings));
@@ -486,8 +487,9 @@ function buildMessagesPanel(guild: Guild, settings: GuildSettingsRepository) {
         { name: `${customEmojis.audacity} Recuperação`, value: `${enabled(saved?.announceRecovery)} Avisar quando a conexão for recuperada`, inline: false },
         { name: `${customEmojis.sparkle} Estação reserva`, value: `${enabled(saved?.announceFallback)} Avisar quando o fallback for acionado`, inline: false },
         { name: `${customEmojis.info} Modo silencioso`, value: `${enabled(saved?.quietMode)} Ocultar notificações automáticas (comandos continuam respondendo)`, inline: false },
+        { name: `${customEmojis.statistics} Painel ao vivo`, value: `${enabled(saved?.liveStatusEnabled)} Manter uma única mensagem com o estado atual da rádio`, inline: false },
       ).setFooter({ text: 'O bot valida permissões antes de salvar o canal.' }).setTimestamp()],
-    components: [new ActionRowBuilder<ChannelSelectMenuBuilder>().addComponents(select), new ActionRowBuilder<ButtonBuilder>().addComponents(toggle('announcePlayback', 'Início', saved?.announcePlayback), toggle('announceRecovery', 'Recuperação', saved?.announceRecovery)), new ActionRowBuilder<ButtonBuilder>().addComponents(toggle('announceFallback', 'Fallback', saved?.announceFallback), toggle('quietMode', 'Silencioso', saved?.quietMode)), channelActions],
+    components: [new ActionRowBuilder<ChannelSelectMenuBuilder>().addComponents(select), new ActionRowBuilder<ButtonBuilder>().addComponents(toggle('announcePlayback', 'Início', saved?.announcePlayback), toggle('announceRecovery', 'Recuperação', saved?.announceRecovery)), new ActionRowBuilder<ButtonBuilder>().addComponents(toggle('announceFallback', 'Fallback', saved?.announceFallback), toggle('quietMode', 'Silencioso', saved?.quietMode)), new ActionRowBuilder<ButtonBuilder>().addComponents(toggle('liveStatusEnabled', 'Painel ao vivo', saved?.liveStatusEnabled)), channelActions],
   };
 }
 

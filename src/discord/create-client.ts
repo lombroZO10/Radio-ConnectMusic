@@ -157,7 +157,7 @@ async function sendRadioAnnouncement(
     : event.type === 'fallback'
       ? saved.announceFallback
       : saved.announceRecovery;
-  if (!enabled) return;
+  if (!enabled && !saved.liveStatusEnabled) return;
   try {
     const channel = await client.channels.fetch(saved.announcementChannelId);
     if (!channel?.isTextBased() || !('send' in channel)) return;
@@ -166,10 +166,19 @@ async function sendRadioAnnouncement(
       : event.type === 'fallback'
         ? [customEmojis.sparkle, 'Estação reserva acionada', `A estação principal apresentou instabilidade. A rádio mudou para **${event.station.name}**.`, 0xf59e0b]
         : [customEmojis.audacity, 'Conexão recuperada', `A transmissão de **${event.station.name}** voltou ao canal de voz.`, 0x3b82f6];
-    await channel.send({
-      embeds: [new EmbedBuilder().setColor(color).setTitle(`${emoji} ${title}`).setDescription(description).setFooter({ text: config.branding.name }).setTimestamp()],
-      allowedMentions: { parse: [] },
-    });
+    const payload = {
+      embeds: [new EmbedBuilder().setColor(color).setTitle(`${emoji} ${title}`).setDescription(description).addFields({ name: `${customEmojis.radio} Canal de voz`, value: event.channelId ? `<#${event.channelId}>` : 'Conectando', inline: true }).setFooter({ text: config.branding.name }).setTimestamp()],
+      allowedMentions: { parse: [] as never[] },
+    };
+    if (saved.liveStatusEnabled && saved.liveStatusMessageId && 'messages' in channel) {
+      const message = await channel.messages.fetch(saved.liveStatusMessageId).catch(() => null);
+      if (message) {
+        await message.edit(payload);
+        return;
+      }
+    }
+    const sent = await channel.send(payload);
+    if (saved.liveStatusEnabled) settings.setLiveStatusMessage(event.guildId, sent.id);
   } catch (error) {
     logger.warn({ err: error, guildId: event.guildId, channelId: saved.announcementChannelId }, 'Não foi possível publicar notificação da rádio');
   }

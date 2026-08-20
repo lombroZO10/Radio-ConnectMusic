@@ -48,6 +48,8 @@ export class JsonGuildSettingsRepository implements GuildSettingsRepository {
       ...(current?.announceRecovery !== undefined ? { announceRecovery: current.announceRecovery } : {}),
       ...(current?.announceFallback !== undefined ? { announceFallback: current.announceFallback } : {}),
       ...(current?.quietMode !== undefined ? { quietMode: current.quietMode } : {}),
+      ...(current?.liveStatusEnabled !== undefined ? { liveStatusEnabled: current.liveStatusEnabled } : {}),
+      ...(current?.liveStatusMessageId ? { liveStatusMessageId: current.liveStatusMessageId } : {}),
     });
   }
 
@@ -103,8 +105,12 @@ export class JsonGuildSettingsRepository implements GuildSettingsRepository {
     this.#commit(guildId, { ...current, announcementChannelId: undefined });
   }
 
-  setMessagePreference(guildId: string, preference: 'announcePlayback' | 'announceRecovery' | 'announceFallback' | 'quietMode', enabled: boolean): void {
+  setMessagePreference(guildId: string, preference: 'announcePlayback' | 'announceRecovery' | 'announceFallback' | 'quietMode' | 'liveStatusEnabled', enabled: boolean): void {
     this.#updateWith(guildId, { [preference]: enabled });
+  }
+
+  setLiveStatusMessage(guildId: string, messageId: string | undefined): void {
+    this.#updateWith(guildId, { liveStatusMessageId: messageId });
   }
 
   setStation(guildId: string, stationId: string): void {

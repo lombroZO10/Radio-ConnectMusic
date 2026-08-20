@@ -29,6 +29,8 @@ export const guildSettingsSchema = z.object({
   announceRecovery: z.boolean().optional(),
   announceFallback: z.boolean().optional(),
   quietMode: z.boolean().optional(),
+  liveStatusEnabled: z.boolean().optional(),
+  liveStatusMessageId: z.string().regex(/^\d+$/).optional(),
 });
 
 export const guildSettingsFileSchema = z.object({
@@ -51,7 +53,8 @@ export interface GuildSettingsRepository {
   setPublicControlEnabled(guildId: string, enabled: boolean): void;
   setAnnouncementChannel(guildId: string, channelId: string): void;
   clearAnnouncementChannel(guildId: string): void;
-  setMessagePreference(guildId: string, preference: 'announcePlayback' | 'announceRecovery' | 'announceFallback' | 'quietMode', enabled: boolean): void;
+  setMessagePreference(guildId: string, preference: 'announcePlayback' | 'announceRecovery' | 'announceFallback' | 'quietMode' | 'liveStatusEnabled', enabled: boolean): void;
+  setLiveStatusMessage(guildId: string, messageId: string | undefined): void;
   setStation(guildId: string, stationId: string): void;
   clearStation(guildId: string): void;
 }
