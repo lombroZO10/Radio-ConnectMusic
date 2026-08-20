@@ -19,7 +19,7 @@ export const customEmojis = {
   like: custom('like', '1539720692877738284'),
   link: custom('link', '1539720408587046992'),
   trash: custom('lixo', '1539720978685493279'),
-  loading: custom('loading', '1539722424961081385'),
+  loading: custom('loading', '1539722424961081385', true),
   logs: custom('logs', '1539720516993294449'),
   mail: custom('mail', '1539720730541948968'),
   plus: custom('mas', '1539720789579775440'),

@@ -55,6 +55,11 @@ const TEMPLATES_ID = `${CUSTOM_ID_PREFIX}templates`;
 const TEMPLATES_BACK_ID = `${CUSTOM_ID_PREFIX}templates-back`;
 const TEMPLATE_EDIT_PREFIX = `${CUSTOM_ID_PREFIX}template-edit:`;
 const TEMPLATE_PREVIEW_PREFIX = `${CUSTOM_ID_PREFIX}template-preview:`;
+const MAINTENANCE_ID = `${CUSTOM_ID_PREFIX}maintenance`;
+const MAINTENANCE_BACK_ID = `${CUSTOM_ID_PREFIX}maintenance-back`;
+const MAINTENANCE_RECREATE_ID = `${CUSTOM_ID_PREFIX}maintenance-recreate`;
+const MAINTENANCE_RESET_ID = `${CUSTOM_ID_PREFIX}maintenance-reset`;
+const MAINTENANCE_CLEAR_MENTIONS_ID = `${CUSTOM_ID_PREFIX}maintenance-clear-mentions`;
 const MESSAGE_TOGGLE_PREFIX = `${CUSTOM_ID_PREFIX}messages-toggle:`;
 const CLEAR_VOICE_ID = `${CUSTOM_ID_PREFIX}voice-clear`;
 const CLEAR_VOICE_CONFIRM_ID = `${CUSTOM_ID_PREFIX}voice-clear-confirm`;
@@ -177,6 +182,37 @@ export function createConfigPanelFeature(
         }
         if (interaction.customId === TEMPLATES_BACK_ID) {
           await interaction.update(buildMessagesPanel(interaction.guild, settings));
+          return;
+        }
+        if (interaction.customId === MAINTENANCE_ID) {
+          await interaction.update(buildMaintenancePanel(interaction.guild, settings));
+          return;
+        }
+        if (interaction.customId === MAINTENANCE_BACK_ID) {
+          await interaction.update(buildMessagesPanel(interaction.guild, settings));
+          return;
+        }
+        if (interaction.customId === MAINTENANCE_RECREATE_ID) {
+          await interaction.deferUpdate();
+          settings.setLiveStatusMessage(interaction.guild.id, undefined);
+          settings.appendAudit(interaction.guild.id, { actorId: interaction.user.id, action: 'recreate-live-panel' });
+          await interaction.editReply({ content: `${customEmojis.green} O painel ao vivo será recriado no próximo evento.`, ...buildMaintenancePanel(interaction.guild, settings) });
+          return;
+        }
+        if (interaction.customId === MAINTENANCE_CLEAR_MENTIONS_ID) {
+          await interaction.deferUpdate();
+          settings.setMentionSettings(interaction.guild.id, { allowEveryoneMention: false, allowHereMention: false });
+          settings.appendAudit(interaction.guild.id, { actorId: interaction.user.id, action: 'clear-mentions' });
+          await interaction.editReply(buildMaintenancePanel(interaction.guild, settings));
+          return;
+        }
+        if (interaction.customId === MAINTENANCE_RESET_ID) {
+          await interaction.deferUpdate();
+          for (const preference of ['announcePlayback', 'announceRecovery', 'announceFallback', 'quietMode', 'liveStatusEnabled'] as const) settings.setMessagePreference(interaction.guild.id, preference, false);
+          settings.setMentionSettings(interaction.guild.id, { allowEveryoneMention: false, allowHereMention: false });
+          settings.setNotificationTemplates(interaction.guild.id, undefined);
+          settings.appendAudit(interaction.guild.id, { actorId: interaction.user.id, action: 'reset-message-settings' });
+          await interaction.editReply(buildMaintenancePanel(interaction.guild, settings));
           return;
         }
         if (!interaction.isModalSubmit() && interaction.customId.startsWith(TEMPLATE_EDIT_PREFIX)) {
@@ -618,10 +654,18 @@ function buildTemplatesPanel(guild: Guild, settings: GuildSettingsRepository) {
     new ButtonBuilder().setCustomId(`${TEMPLATE_EDIT_PREFIX}${kind}`).setLabel(`Editar ${templateLabels[kind]}`).setEmoji(customEmojis.edit).setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId(`${TEMPLATE_PREVIEW_PREFIX}${kind}`).setLabel('Pré-visualizar').setEmoji(customEmojis.search).setStyle(ButtonStyle.Secondary),
   ));
-  rows.push(new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(TEMPLATES_BACK_ID).setLabel('Voltar às mensagens').setEmoji('↩️').setStyle(ButtonStyle.Primary), new ButtonBuilder().setCustomId(CLOSE_ID).setLabel('Fechar painel').setEmoji(customEmojis.close).setStyle(ButtonStyle.Secondary)));
+  rows.push(new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(TEMPLATES_BACK_ID).setLabel('Voltar às mensagens').setEmoji('↩️').setStyle(ButtonStyle.Primary), new ButtonBuilder().setCustomId(MAINTENANCE_ID).setLabel('Manutenção').setEmoji(customEmojis.staff).setStyle(ButtonStyle.Secondary), new ButtonBuilder().setCustomId(CLOSE_ID).setLabel('Fechar painel').setEmoji(customEmojis.close).setStyle(ButtonStyle.Secondary)));
   return {
     embeds: [new EmbedBuilder().setColor(brandColor).setTitle(`${customEmojis.edit} Editor de mensagens`).setDescription('Personalize cada evento da rádio. Use `{station}` para inserir automaticamente o nome da estação.').addFields((Object.keys(templateLabels) as TemplateKind[]).map((kind) => ({ name: templateLabels[kind], value: getTemplate(kind, saved?.notificationTemplates).title, inline: true }))).setTimestamp()],
     components: rows,
+  };
+}
+
+function buildMaintenancePanel(guild: Guild, settings: GuildSettingsRepository) {
+  const saved = settings.get(guild.id);
+  return {
+    embeds: [new EmbedBuilder().setColor(0xf59e0b).setTitle(`${customEmojis.staff} Manutenção de mensagens`).setDescription('Ações operacionais protegidas para corrigir ou restaurar a interface da rádio.').addFields({ name: `${customEmojis.statistics} Painel ao vivo`, value: saved?.liveStatusMessageId ? 'Mensagem registrada' : 'Sem mensagem registrada', inline: true }, { name: `${customEmojis.members} Menções`, value: saved?.mentionRoleId ? 'Cargo configurado' : 'Nenhum cargo', inline: true }).setFooter({ text: 'Todas as ações são registradas na auditoria.' }).setTimestamp()],
+    components: [new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(MAINTENANCE_RECREATE_ID).setLabel('Recriar painel').setEmoji(customEmojis.statistics).setStyle(ButtonStyle.Primary), new ButtonBuilder().setCustomId(MAINTENANCE_CLEAR_MENTIONS_ID).setLabel('Limpar menções').setEmoji(customEmojis.trash).setStyle(ButtonStyle.Danger)), new ActionRowBuilder<ButtonBuilder>().addComponents(new ButtonBuilder().setCustomId(MAINTENANCE_RESET_ID).setLabel('Restaurar padrões').setEmoji(customEmojis.rules).setStyle(ButtonStyle.Danger), new ButtonBuilder().setCustomId(MAINTENANCE_BACK_ID).setLabel('Voltar').setEmoji('↩️').setStyle(ButtonStyle.Secondary), new ButtonBuilder().setCustomId(CLOSE_ID).setLabel('Fechar').setEmoji(customEmojis.close).setStyle(ButtonStyle.Secondary))],
   };
 }
 

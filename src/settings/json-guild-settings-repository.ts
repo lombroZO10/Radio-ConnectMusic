@@ -50,6 +50,7 @@ export class JsonGuildSettingsRepository implements GuildSettingsRepository {
       ...(current?.quietMode !== undefined ? { quietMode: current.quietMode } : {}),
       ...(current?.liveStatusEnabled !== undefined ? { liveStatusEnabled: current.liveStatusEnabled } : {}),
       ...(current?.liveStatusMessageId ? { liveStatusMessageId: current.liveStatusMessageId } : {}),
+      ...(current?.auditLog ? { auditLog: current.auditLog } : {}),
     });
   }
 
@@ -119,6 +120,13 @@ export class JsonGuildSettingsRepository implements GuildSettingsRepository {
 
   setMentionSettings(guildId: string, mentionSettings: Pick<GuildSettings, 'mentionRoleId' | 'allowEveryoneMention' | 'allowHereMention'>): void {
     this.#updateWith(guildId, mentionSettings);
+  }
+
+  appendAudit(guildId: string, entry: { actorId: string; action: string }): void {
+    const current = this.#settings.get(guildId);
+    if (!current) return;
+    const auditLog = [...(current.auditLog ?? []), { ...entry, at: Date.now() }].slice(-100);
+    this.#commit(guildId, { ...current, auditLog });
   }
 
   setStation(guildId: string, stationId: string): void {

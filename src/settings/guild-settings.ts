@@ -6,6 +6,11 @@ const notificationTemplateSchema = z.object({
   footer: z.string().max(2048),
   color: z.number().int().min(0).max(0xffffff),
 });
+const auditEntrySchema = z.object({
+  actorId: z.string().regex(/^\d+$/),
+  action: z.string().min(1).max(120),
+  at: z.number().int().positive(),
+});
 
 export const notificationTemplatesSchema = z.object({
   playbackStart: notificationTemplateSchema.optional(),
@@ -48,6 +53,7 @@ export const guildSettingsSchema = z.object({
   mentionRoleId: z.string().regex(/^\d+$/).optional(),
   allowEveryoneMention: z.boolean().optional(),
   allowHereMention: z.boolean().optional(),
+  auditLog: z.array(auditEntrySchema).max(100).optional(),
 });
 
 export const guildSettingsFileSchema = z.object({
@@ -74,6 +80,7 @@ export interface GuildSettingsRepository {
   setLiveStatusMessage(guildId: string, messageId: string | undefined): void;
   setNotificationTemplates(guildId: string, templates: GuildSettings['notificationTemplates']): void;
   setMentionSettings(guildId: string, settings: Pick<GuildSettings, 'mentionRoleId' | 'allowEveryoneMention' | 'allowHereMention'>): void;
+  appendAudit(guildId: string, entry: { actorId: string; action: string }): void;
   setStation(guildId: string, stationId: string): void;
   clearStation(guildId: string): void;
 }
