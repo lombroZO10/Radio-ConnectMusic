@@ -43,6 +43,7 @@ const MESSAGES_ID = `${CUSTOM_ID_PREFIX}messages`;
 const MESSAGES_BACK_ID = `${CUSTOM_ID_PREFIX}messages-back`;
 const ANNOUNCEMENT_CHANNEL_ID = `${CUSTOM_ID_PREFIX}messages-channel`;
 const CLEAR_ANNOUNCEMENT_CHANNEL_ID = `${CUSTOM_ID_PREFIX}messages-channel-clear`;
+const TEST_ANNOUNCEMENT_ID = `${CUSTOM_ID_PREFIX}messages-test`;
 const MESSAGE_TOGGLE_PREFIX = `${CUSTOM_ID_PREFIX}messages-toggle:`;
 const CLEAR_VOICE_ID = `${CUSTOM_ID_PREFIX}voice-clear`;
 const CLEAR_VOICE_CONFIRM_ID = `${CUSTOM_ID_PREFIX}voice-clear-confirm`;
@@ -149,6 +150,29 @@ export function createConfigPanelFeature(
           await interaction.deferUpdate();
           settings.clearAnnouncementChannel(interaction.guild.id);
           await interaction.editReply(buildMessagesPanel(interaction.guild, settings));
+          return;
+        }
+
+        if (interaction.customId === TEST_ANNOUNCEMENT_ID) {
+          const saved = settings.get(interaction.guild.id);
+          if (!saved?.announcementChannelId) {
+            await interaction.reply({ content: 'Configure primeiro um canal de notificações.', flags: MessageFlags.Ephemeral });
+            return;
+          }
+          const channel = await interaction.guild.channels.fetch(saved.announcementChannelId).catch(() => null);
+          if (!channel?.isTextBased() || !('send' in channel)) {
+            await interaction.reply({ content: 'O canal salvo não está mais disponível. Escolha outro canal.', flags: MessageFlags.Ephemeral });
+            return;
+          }
+          try {
+            await channel.send({
+              embeds: [new EmbedBuilder().setColor(brandColor).setTitle(`${customEmojis.mail} Notificações configuradas`).setDescription('Este é um teste da interface da **Radio Connect Music 24/7**. O canal está pronto para receber os eventos selecionados.').addFields({ name: `${customEmojis.green} Status`, value: 'Canal validado com sucesso.', inline: true }, { name: `${customEmojis.info} Modo`, value: saved.quietMode ? 'Silencioso' : 'Ativo', inline: true }).setFooter({ text: 'Mensagem de teste • nenhuma transmissão foi alterada' }).setTimestamp()],
+              allowedMentions: { parse: [] },
+            });
+            await interaction.reply({ content: `${customEmojis.green} Mensagem de teste enviada em <#${channel.id}>.`, flags: MessageFlags.Ephemeral });
+          } catch {
+            await interaction.reply({ content: `${customEmojis.red} Não consegui enviar nesse canal. Verifique minhas permissões.`, flags: MessageFlags.Ephemeral });
+          }
           return;
         }
 
@@ -448,6 +472,7 @@ function buildMessagesPanel(guild: Guild, settings: GuildSettingsRepository) {
     .setMaxValues(1);
   if (saved?.announcementChannelId) select.setDefaultChannels(saved.announcementChannelId);
   const channelActions = new ActionRowBuilder<ButtonBuilder>();
+  channelActions.addComponents(new ButtonBuilder().setCustomId(TEST_ANNOUNCEMENT_ID).setLabel('Enviar teste').setEmoji(customEmojis.mail).setStyle(ButtonStyle.Success));
   if (channel) channelActions.addComponents(new ButtonBuilder().setCustomId(CLEAR_ANNOUNCEMENT_CHANNEL_ID).setLabel('Remover canal').setEmoji(customEmojis.trash).setStyle(ButtonStyle.Danger));
   channelActions.addComponents(new ButtonBuilder().setCustomId(MESSAGES_BACK_ID).setLabel('Voltar ao painel').setEmoji('↩️').setStyle(ButtonStyle.Primary), new ButtonBuilder().setCustomId(CLOSE_ID).setLabel('Fechar painel').setEmoji(customEmojis.close).setStyle(ButtonStyle.Secondary));
   return {
