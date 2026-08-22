@@ -35,7 +35,7 @@ export function createRadioCommand(
           .addStringOption((option) =>
             option
               .setName('estacao')
-              .setDescription('Nome da estação')
+              .setDescription('Busque por nome, gênero ou ID da estação')
               .setRequired(true)
               .setAutocomplete(true),
           ),
@@ -86,8 +86,8 @@ export function createRadioCommand(
       }
 
       if (subcommand === 'tocar') {
-        const stationId = interaction.options.getString('estacao', true);
-        const station = catalog.getById(stationId);
+        const stationQuery = interaction.options.getString('estacao', true).trim();
+        const station = catalog.getById(stationQuery) ?? catalog.search(stationQuery, 1)[0];
         if (!station) {
           await interaction.reply({
             content: 'Estação não encontrada.',
@@ -99,6 +99,18 @@ export function createRadioCommand(
         if (!configured) {
           await interaction.reply({
             content: 'O canal 24/7 ainda não foi definido. Um administrador deve usar `/config`.',
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+        const currentStatus = radio.getStatus(interaction.guildId);
+        if (
+          currentStatus?.station?.id === station.id
+          && currentStatus.voiceStatus === VoiceConnectionStatus.Ready
+          && currentStatus.audioStatus === AudioPlayerStatus.Playing
+        ) {
+          await interaction.reply({
+            content: `${customEmojis.green} **${station.name}** já está transmitindo neste servidor.`,
             flags: MessageFlags.Ephemeral,
           });
           return;
@@ -131,7 +143,7 @@ export function createRadioCommand(
           throw error;
         }
         await interaction.editReply({
-          content: `Estação selecionada: **${station.name}**\nTransmitindo em <#${channel.id}>.`,
+          content: `${customEmojis.music} **${station.name}** selecionada.\n${customEmojis.green} Transmissão iniciando em <#${channel.id}>.`,
           embeds: [stationEmbed(station)],
         });
         if (configured.liveStatusEnabled) {
@@ -290,9 +302,17 @@ export function createRadioCommand(
     async autocomplete(interaction) {
       const focused = interaction.options.getFocused(true);
       if (focused.name === 'estacao') {
-        const stations = catalog.search(focused.value);
+        const stations = [...catalog.search(focused.value)];
+        const configured = interaction.guildId ? settings.get(interaction.guildId) : undefined;
+        const preferredId = configured?.stationId ?? configured?.defaultStationId;
+        if (preferredId) {
+          stations.sort((a, b) => Number(b.id === preferredId) - Number(a.id === preferredId));
+        }
         await interaction.respond(
-          stations.map((station) => ({ name: station.name, value: station.id })),
+          stations.map((station) => ({
+            name: `${station.name} • ${station.genres[0] ?? 'Rádio'}`.slice(0, 100),
+            value: station.id,
+          })),
         );
         return;
       }
