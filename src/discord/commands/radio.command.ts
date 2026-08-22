@@ -15,6 +15,7 @@ import { brandColor, stationEmbed } from '../embeds.js';
 import type { DiscordCommand } from '../command.js';
 import type { RadioManager } from '../../radio/radio-manager.js';
 import type { GuildSettingsRepository } from '../../settings/guild-settings.js';
+import type { StationUsageRepository } from '../../radio/station-usage.js';
 import { canControlRadio } from '../permissions.js';
 import { customEmojis } from '../custom-emojis.js';
 
@@ -22,6 +23,7 @@ export function createRadioCommand(
   catalog: StationCatalog,
   radio: RadioManager,
   settings: GuildSettingsRepository,
+  stationUsage: StationUsageRepository,
 ): DiscordCommand {
   return {
     data: new SlashCommandBuilder()
@@ -48,6 +50,9 @@ export function createRadioCommand(
       )
       .addSubcommand((subcommand) =>
         subcommand.setName('status').setDescription('Mostra o diagnóstico da transmissão'),
+      )
+      .addSubcommand((subcommand) =>
+        subcommand.setName('melhores').setDescription('Mostra as rádios mais escolhidas pela comunidade'),
       )
       .addSubcommand((subcommand) =>
         subcommand
@@ -142,6 +147,12 @@ export function createRadioCommand(
           radio.stop(interaction.guildId);
           throw error;
         }
+        // O ranking mede seleções concluídas, não apenas buscas no autocomplete.
+        try {
+          stationUsage.record(station.id);
+        } catch {
+          // Falha de métrica nunca deve interromper uma transmissão saudável.
+        }
         await interaction.editReply({
           content: `${customEmojis.music} **${station.name}** selecionada.\n${customEmojis.green} Transmissão iniciando em <#${channel.id}>.`,
           embeds: [stationEmbed(station)],
@@ -158,20 +169,22 @@ export function createRadioCommand(
       if (subcommand === 'listar') {
         const genre = interaction.options.getString('genero') ?? undefined;
         const stations = catalog.list(genre);
-        const description = stations.length
-          ? stations
-              .slice(0, 25)
-              .map((station) => `• **${station.name}** — ${station.genres.join(', ')}`)
-              .join('\n')
-          : 'Nenhuma estação foi cadastrada para esse filtro.';
+        const hunter = stations.filter((station) => station.id.startsWith('hunter-'));
+        const partners = stations.filter((station) => !station.id.startsWith('hunter-'));
+        const formatStations = (items: typeof stations): string => items.length
+          ? items.slice(0, 25).map((station) => `• **${station.name}**\n  ${station.genres.join(' • ')}`).join('\n')
+          : 'Nenhuma estação nessa categoria.';
+        const embed = new EmbedBuilder()
+          .setColor(brandColor)
+          .setTitle(genre ? `Estações • ${genre}` : 'Estações disponíveis')
+          .setDescription('Escolha uma estação em `/radio tocar`. As estações Hunter.FM ficam separadas das rádios parceiras.')
+          .setFooter({ text: config.branding.name });
+        embed.addFields(
+          { name: `${customEmojis.radio} Hunter.FM`, value: formatStations(hunter), inline: false },
+          { name: `${customEmojis.music} Rádios parceiras`, value: formatStations(partners), inline: false },
+        );
         await interaction.reply({
-          embeds: [
-            new EmbedBuilder()
-              .setColor(brandColor)
-              .setTitle(genre ? `Estações: ${genre}` : 'Estações disponíveis')
-              .setDescription(description)
-              .setFooter({ text: config.branding.name }),
-          ],
+          embeds: [embed],
           flags: MessageFlags.Ephemeral,
         });
         return;
@@ -265,6 +278,33 @@ export function createRadioCommand(
         return;
       }
 
+      if (subcommand === 'melhores') {
+        const ranked = stationUsage
+          .top(catalog.list().map((station) => station.id), 10)
+          .filter((entry) => entry.usage.plays > 0);
+        const description = ranked.length
+          ? ranked
+              .map((entry, index) => {
+                const station = catalog.getById(entry.stationId);
+                if (!station) return undefined;
+                return `**${String(index + 1)}. ${station.name}** — ${String(entry.usage.plays)} seleção${entry.usage.plays === 1 ? '' : 'ões'}\n${categoryLabel(station.id)} • ${station.genres.slice(0, 2).join(' • ')}`;
+              })
+              .filter((line): line is string => Boolean(line))
+              .join('\n\n')
+          : 'O ranking ainda está sendo formado. Escolha uma estação em `/radio tocar` para começar.';
+        await interaction.reply({
+          embeds: [
+            new EmbedBuilder()
+              .setColor(brandColor)
+              .setTitle(`${customEmojis.sparkle} Melhores rádios`)
+              .setDescription(description)
+              .setFooter({ text: `${config.branding.name} • ranking por seleções` })
+              .setTimestamp(),
+          ],
+        });
+        return;
+      }
+
       const snapshot = radio.get(interaction.guildId);
       if (subcommand === 'agora') {
         await interaction.reply(
@@ -310,7 +350,7 @@ export function createRadioCommand(
         }
         await interaction.respond(
           stations.map((station) => ({
-            name: `${station.name} • ${station.genres[0] ?? 'Rádio'}`.slice(0, 100),
+            name: `${categoryLabel(station.id)} • ${station.name} • ${station.genres[0] ?? 'Rádio'}`.slice(0, 100),
             value: station.id,
           })),
         );
@@ -326,6 +366,10 @@ export function createRadioCommand(
       );
     },
   };
+}
+
+function categoryLabel(stationId: string): string {
+  return stationId.startsWith('hunter-') ? 'Hunter.FM' : 'Rádios parceiras';
 }
 
 function voiceStatusLabel(status: string): string {

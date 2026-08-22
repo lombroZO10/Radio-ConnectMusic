@@ -5,6 +5,7 @@ coverage/
 .env
 *.log
 data/guild-settings.json
+data/station-usage.json
 .DS_Store
 .idea/
 .vscode/
