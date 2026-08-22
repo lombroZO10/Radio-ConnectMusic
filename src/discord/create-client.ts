@@ -186,16 +186,20 @@ async function updateBotPresence(
   const track = status.station ? await getCurrentTrack(status.station) : undefined;
   const stationName = status.station?.name ?? 'Radio Connect Music 24/7';
   const activities = [
-    { name: `📻 ${stationName}`, type: ActivityType.Listening },
-    { name: `🎵 ${track ?? 'música ao vivo'}`, type: ActivityType.Listening },
-    { name: `🔊 ${String(active.length)} transmissão${active.length === 1 ? '' : 'ões'} ativa${active.length === 1 ? '' : 's'}`, type: ActivityType.Playing },
+    `📻 ${stationName}`,
+    `🎵 ${track ?? 'música ao vivo'}`,
+    `🔊 ${String(active.length)} transmissão${active.length === 1 ? '' : 'ões'} ativa${active.length === 1 ? '' : 's'}`,
   ] as const;
   const activity = activities.at(presenceRotation % activities.length) ?? {
     name: config.discord.activity,
-    type: ActivityType.Listening,
+    type: ActivityType.Streaming,
   };
   presenceRotation += 1;
-  client.user.setActivity(activity.name, { type: activity.type });
+  const streamingUrl = status.station?.homepageUrl ?? config.branding.websiteUrl ?? 'https://discord.com';
+  client.user.setActivity(typeof activity === 'string' ? activity : activity.name, {
+    type: ActivityType.Streaming,
+    url: streamingUrl,
+  });
 }
 
 function sendRadioAnnouncement(
