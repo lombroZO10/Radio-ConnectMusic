@@ -7,7 +7,8 @@
     "logoUrl": null
   },
   "discord": {
-    "activity": "Radio Connect Music 24/7"
+    "activity": "Radio Connect Music 24/7",
+    "streamingUrl": "https://www.twitch.tv/upload_7"
   },
   "playback": {
     "connectionTimeoutMs": 15000,

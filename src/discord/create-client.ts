@@ -195,11 +195,18 @@ async function updateBotPresence(
     type: ActivityType.Streaming,
   };
   presenceRotation += 1;
-  const streamingUrl = status.station?.homepageUrl ?? config.branding.websiteUrl ?? 'https://discord.com';
+  // Para o badge roxo, use uma URL real do Twitch/YouTube configurada pelo
+  // proprietário. URLs de páginas de rádio podem ser aceitas pela API, mas
+  // o cliente do Discord normalmente as renderiza apenas como presença comum.
+  const streamingUrl = config.discord.streamingUrl
+    ?? status.station?.homepageUrl
+    ?? config.branding.websiteUrl
+    ?? 'https://www.twitch.tv/';
   client.user.setActivity(typeof activity === 'string' ? activity : activity.name, {
     type: ActivityType.Streaming,
     url: streamingUrl,
   });
+  logger.debug({ activity, streamingUrl }, 'Presença de transmissão atualizada');
 }
 
 function sendRadioAnnouncement(

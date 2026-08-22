@@ -29,6 +29,9 @@ export const radioConfigSchema = z.object({
   }),
   discord: z.object({
     activity: z.string().min(2).max(128),
+    // O Discord só exibe o indicador roxo de transmissão quando a atividade
+    // aponta para uma URL de streaming reconhecida (Twitch ou YouTube).
+    streamingUrl: urlOrNullSchema.default(null),
   }),
   playback: z.object({
     connectionTimeoutMs: z.number().int().min(5_000).max(60_000),
