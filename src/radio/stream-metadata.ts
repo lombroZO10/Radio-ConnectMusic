@@ -16,12 +16,18 @@ export function getCurrentTrack(station: Station): Promise<string | undefined> {
   const current = cache.get(station.id);
   if (current && current.expiresAt > now) return Promise.resolve(current.value);
   if (current?.pending) return current.pending;
-  const pending = readIcyTitle(station).finally(() => {
+  const pending = readTrackMetadata(station).finally(() => {
     const entry = cache.get(station.id);
     if (entry) entry.pending = undefined;
   });
   cache.set(station.id, { value: current?.value, expiresAt: now + CACHE_TTL_MS, pending });
   return pending;
+}
+
+async function readTrackMetadata(station: Station): Promise<string | undefined> {
+  const icyTitle = await readIcyTitle(station);
+  if (icyTitle) return icyTitle;
+  return readTritonNowPlaying(station);
 }
 
 async function readIcyTitle(station: Station): Promise<string | undefined> {
@@ -86,6 +92,55 @@ async function readIcyTitle(station: Station): Promise<string | undefined> {
   return undefined;
 }
 
+/** StreamTheWorld/Triton entrega o áudio sem icy-metaint, mas expõe um XML público de now playing. */
+async function readTritonNowPlaying(station: Station): Promise<string | undefined> {
+  let mountName: string | undefined;
+  try {
+    const stream = new URL(station.streamUrl);
+    if (!stream.hostname.includes('streamtheworld.com')) return undefined;
+    const match = /\/redirect\/([^/?]+)/iu.exec(stream.pathname);
+    mountName = match?.[1]?.replace(/\.(?:aac|mp3|m3u8)$/iu, '');
+  } catch {
+    return undefined;
+  }
+  if (!mountName) return undefined;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => {
+    controller.abort();
+  }, REQUEST_TIMEOUT_MS);
+  timeout.unref();
+  try {
+    const endpoint = new URL('https://np.tritondigital.com/public/nowplaying');
+    endpoint.searchParams.set('mountName', mountName);
+    endpoint.searchParams.set('numberToFetch', '3');
+    endpoint.searchParams.set('eventType', 'track');
+    const response = await fetch(endpoint, { signal: controller.signal });
+    if (!response.ok) return undefined;
+    const xml = await response.text();
+    const latest = /<nowplaying-info\b[^>]*>.*?<\/nowplaying-info>/isu.exec(xml)?.[0];
+    if (!latest) return undefined;
+    const title = readXmlProperty(latest, 'cue_title');
+    const artist = readXmlProperty(latest, 'track_artist_name');
+    if (isPlaceholder(title) || isPlaceholder(artist)) return undefined;
+    if (artist && title) return normalizeTitle(`${artist} - ${title}`);
+    return normalizeTitle(title ?? artist ?? '');
+  } catch {
+    return undefined;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function readXmlProperty(xml: string, name: string): string | undefined {
+  const match = new RegExp(`<property\\s+name=["']${name}["'][^>]*>(?:<!\\[CDATA\\[)?(.*?)(?:\\]\\]>)?<\\/property>`, 'isu').exec(xml);
+  return match?.[1]?.trim();
+}
+
+function isPlaceholder(value: string | undefined): boolean {
+  if (!value) return true;
+  return /^(?:#(?:song|singer|artist|title)#(?:\s*-\s*#(?:song|singer|artist|title)#)?|unknown)$/iu.test(value.trim());
+}
+
 function extractTitle(metadata: string): string | undefined {
   const match = /StreamTitle='([^']*)';/iu.exec(metadata);
   const value = match?.[1];
@@ -99,5 +154,5 @@ function decodeIcyMetadata(value: Buffer): string {
 
 function normalizeTitle(value: string): string | undefined {
   const title = value.replace(/\s+/gu, ' ').trim();
-  return title && title.toLowerCase() !== 'unknown' ? title.slice(0, 256) : undefined;
+  return title && !isPlaceholder(title) ? title.slice(0, 256) : undefined;
 }
