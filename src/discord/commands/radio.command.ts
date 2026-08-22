@@ -36,6 +36,17 @@ export function createRadioCommand(
           .setDescription('Toca uma estação no canal 24/7 configurado')
           .addStringOption((option) =>
             option
+              .setName('categoria')
+              .setDescription('Organiza as estações antes da escolha')
+              .setRequired(true)
+              .addChoices(
+                { name: 'Hunter.FM', value: 'hunter' },
+                { name: 'Melhores rádios', value: 'melhores' },
+                { name: 'Rádios FM', value: 'fm' },
+              ),
+          )
+          .addStringOption((option) =>
+            option
               .setName('estacao')
               .setDescription('Busque por nome, gênero ou ID da estação')
               .setRequired(true)
@@ -91,11 +102,19 @@ export function createRadioCommand(
       }
 
       if (subcommand === 'tocar') {
+        const category = interaction.options.getString('categoria', true);
         const stationQuery = interaction.options.getString('estacao', true).trim();
         const station = catalog.getById(stationQuery) ?? catalog.search(stationQuery, 1)[0];
         if (!station) {
           await interaction.reply({
             content: 'Estação não encontrada.',
+            flags: MessageFlags.Ephemeral,
+          });
+          return;
+        }
+        if (!stationMatchesCategory(station.id, category, catalog)) {
+          await interaction.reply({
+            content: 'Essa estação não pertence à categoria selecionada. Escolha outra sugestão no autocomplete.',
             flags: MessageFlags.Ephemeral,
           });
           return;
@@ -342,9 +361,19 @@ export function createRadioCommand(
     async autocomplete(interaction) {
       const focused = interaction.options.getFocused(true);
       if (focused.name === 'estacao') {
-        const stations = [...catalog.search(focused.value)];
+        const category = interaction.options.getString('categoria') ?? 'fm';
+        const allowedStations = catalog.list().filter((station) => stationMatchesCategory(station.id, category, catalog));
+        const allowedIds = new Set(allowedStations.map((station) => station.id));
+        const stations = [...catalog.search(focused.value).filter((station) => allowedIds.has(station.id))];
         const configured = interaction.guildId ? settings.get(interaction.guildId) : undefined;
         const preferredId = configured?.stationId ?? configured?.defaultStationId;
+        if (category === 'melhores') {
+          const ranking = new Map(
+            stationUsage.top(allowedStations.map((station) => station.id), allowedStations.length)
+              .map((entry, index) => [entry.stationId, index]),
+          );
+          stations.sort((a, b) => (ranking.get(a.id) ?? Number.MAX_SAFE_INTEGER) - (ranking.get(b.id) ?? Number.MAX_SAFE_INTEGER));
+        }
         if (preferredId) {
           stations.sort((a, b) => Number(b.id === preferredId) - Number(a.id === preferredId));
         }
@@ -366,6 +395,21 @@ export function createRadioCommand(
       );
     },
   };
+}
+
+function stationMatchesCategory(
+  stationId: string,
+  category: string,
+  catalog: StationCatalog,
+): boolean {
+  if (category === 'hunter') return stationId.startsWith('hunter-');
+  if (category === 'fm') return !stationId.startsWith('hunter-');
+  if (category === 'melhores') {
+    // O ranking começa vazio; nesse caso todas ficam disponíveis e vão sendo
+    // ordenadas conforme as seleções reais forem registradas.
+    return catalog.list().some((station) => station.id === stationId);
+  }
+  return true;
 }
 
 function categoryLabel(stationId: string): string {

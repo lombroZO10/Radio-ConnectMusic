@@ -487,6 +487,9 @@ export class RadioSession {
         this.#player.state.status === AudioPlayerStatus.Playing
       ) {
         this.#reconnectAttempts = 0;
+        // Erros de uma tentativa anterior não devem permanecer no painel
+        // depois que a transmissão voltou e ficou estável.
+        this.#lastError = undefined;
         this.#logger.debug({ stationId }, 'Transmissão considerada estável');
       }
     }, this.#settings.minimumStablePlaybackMs);
