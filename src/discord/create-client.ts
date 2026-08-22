@@ -8,6 +8,7 @@ import {
   type Interaction,
 } from 'discord.js';
 import { EmbedBuilder } from 'discord.js';
+import { AudioPlayerStatus } from '@discordjs/voice';
 
 import { config } from '../config/index.js';
 import type { RadioManager } from '../radio/radio-manager.js';
@@ -44,6 +45,12 @@ export function createDiscordClient(
     refreshLivePanels(client, settings, radio);
   }, 60_000);
   liveRefreshTimer.unref();
+  const presenceTimer = setInterval(() => {
+    void updateBotPresence(client, radio, settings).catch((error: unknown) => {
+      logger.debug({ err: error }, 'Não foi possível atualizar a presença dinâmica');
+    });
+  }, 30_000);
+  presenceTimer.unref();
 
   let shutdownTask: Promise<void> | undefined;
   const shutdown = (signal: string, exitCode = 0): Promise<void> => {
@@ -57,6 +64,7 @@ export function createDiscordClient(
       }, 10_000);
       try {
         clearInterval(liveRefreshTimer);
+        clearInterval(presenceTimer);
         notificationQueue.clear();
         radio.stopAll();
         await client.destroy();
@@ -73,6 +81,9 @@ export function createDiscordClient(
       { user: readyClient.user.tag, guilds: readyClient.guilds.cache.size },
       'Bot conectado ao Discord',
     );
+    void updateBotPresence(readyClient, radio, settings).catch((error: unknown) => {
+      logger.debug({ err: error }, 'Não foi possível inicializar a presença dinâmica');
+    });
     void restoreConfiguredVoiceChannels(readyClient, settings, radio, catalog, logger).catch(
       (error: unknown) => {
         logger.error({ err: error }, 'Falha inesperada ao restaurar conexões permanentes');
@@ -153,6 +164,38 @@ export function createDiscordClient(
   });
 
   return client;
+}
+
+let presenceRotation = 0;
+
+async function updateBotPresence(
+  client: Client,
+  radio: RadioManager,
+  settings: GuildSettingsRepository,
+): Promise<void> {
+  const active = settings.list()
+    .map((guildSettings) => radio.getStatus(guildSettings.guildId))
+    .filter((status): status is NonNullable<typeof status> => Boolean(status?.station && status.audioStatus === AudioPlayerStatus.Playing));
+  if (!client.user) return;
+  if (!active.length) {
+    client.user.setActivity(config.discord.activity, { type: ActivityType.Listening });
+    return;
+  }
+  const status = active[0];
+  if (!status) return;
+  const track = status.station ? await getCurrentTrack(status.station) : undefined;
+  const stationName = status.station?.name ?? 'Radio Connect Music 24/7';
+  const activities = [
+    { name: `📻 ${stationName}`, type: ActivityType.Listening },
+    { name: `🎵 ${track ?? 'música ao vivo'}`, type: ActivityType.Listening },
+    { name: `🔊 ${String(active.length)} transmissão${active.length === 1 ? '' : 'ões'} ativa${active.length === 1 ? '' : 's'}`, type: ActivityType.Playing },
+  ] as const;
+  const activity = activities.at(presenceRotation % activities.length) ?? {
+    name: config.discord.activity,
+    type: ActivityType.Listening,
+  };
+  presenceRotation += 1;
+  client.user.setActivity(activity.name, { type: activity.type });
 }
 
 function sendRadioAnnouncement(
