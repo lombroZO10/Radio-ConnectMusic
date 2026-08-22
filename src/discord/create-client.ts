@@ -39,6 +39,10 @@ export function createDiscordClient(
   radio.onEvent((event) => {
     sendRadioAnnouncement(client, settings, event);
   });
+  const liveRefreshTimer = setInterval(() => {
+    void refreshLivePanels(client, settings, radio);
+  }, 60_000);
+  liveRefreshTimer.unref();
 
   let shutdownTask: Promise<void> | undefined;
   const shutdown = (signal: string, exitCode = 0): Promise<void> => {
@@ -228,6 +232,26 @@ async function notifyChannelRecovery(client: Client, guildId: string): Promise<v
   const fallback = guild?.systemChannel ?? guild?.channels.cache.find((channel) => channel.isTextBased() && 'send' in channel);
   if (!fallback || !fallback.isTextBased() || !('send' in fallback)) return;
   await fallback.send({ content: `${customEmojis.info} O canal de notificações da rádio não existe mais. A configuração foi limpa; um administrador deve escolher outro canal em \`/config\`.`, allowedMentions: { parse: [] } }).catch(() => undefined);
+}
+
+async function refreshLivePanels(
+  client: Client,
+  settings: GuildSettingsRepository,
+  radio: RadioManager,
+): Promise<void> {
+  for (const guildSettings of settings.list()) {
+    if (!guildSettings.liveStatusEnabled || !guildSettings.liveStatusMessageId) continue;
+    const status = radio.getStatus(guildSettings.guildId);
+    if (!status?.station || !status.channelId) continue;
+    await sendRadioAnnouncementNow(client, settings, {
+      type: 'playback-start',
+      guildId: guildSettings.guildId,
+      station: status.station,
+      channelId: status.channelId,
+      status,
+      isRecovery: false,
+    });
+  }
 }
 
 function formatDuration(milliseconds: number): string {
