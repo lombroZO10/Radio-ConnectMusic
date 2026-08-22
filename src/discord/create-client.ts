@@ -20,6 +20,7 @@ import { restoreConfiguredVoiceChannels } from './restore-voice-channels.js';
 import type { RadioSessionEvent } from '../radio/radio-session.js';
 import { customEmojis } from './custom-emojis.js';
 import { NotificationQueue } from './notification-queue.js';
+import { getCurrentTrack } from '../radio/stream-metadata.js';
 
 const notificationQueue = new NotificationQueue();
 
@@ -209,10 +210,11 @@ async function sendRadioAnnouncementNow(
     const duration = status?.playbackStartedAt ? formatDuration(Date.now() - status.playbackStartedAt) : '—';
     const genres = event.station?.genres.join(' • ') ?? '—';
     const lastError = status?.lastError?.message ?? 'Nenhum erro registrado';
+    const currentTrack = event.station ? await getCurrentTrack(event.station) : undefined;
     const mentionContent = [saved.allowEveryoneMention ? '@everyone' : '', saved.allowHereMention ? '@here' : '', saved.mentionRoleId ? `<@&${saved.mentionRoleId}>` : ''].filter(Boolean).join(' ');
     const payload = {
       ...(mentionContent ? { content: mentionContent } : {}),
-      embeds: [new EmbedBuilder().setColor(color).setTitle(`${emoji} ${title}`).setDescription(description).addFields({ name: `${customEmojis.radio} Canal de voz`, value: event.channelId ? `<#${event.channelId}>` : '—', inline: true }, { name: `${customEmojis.music} Gênero`, value: genres, inline: true }, { name: `${customEmojis.audacity} Áudio`, value: status?.audioStatus ?? 'idle', inline: true }, { name: `${customEmojis.loading} Duração`, value: duration, inline: true }, { name: `${customEmojis.info} Último erro`, value: lastError.slice(0, 1024), inline: false }).setFooter({ text: footer }).setTimestamp()],
+      embeds: [new EmbedBuilder().setColor(color).setTitle(`${emoji} ${title}`).setDescription(description).addFields({ name: `${customEmojis.radio} Canal de voz`, value: event.channelId ? `<#${event.channelId}>` : '—', inline: true }, { name: `${customEmojis.music} Gênero`, value: genres, inline: true }, { name: `${customEmojis.audacity} Áudio`, value: status?.audioStatus ?? 'idle', inline: true }, { name: `${customEmojis.loading} Duração`, value: duration, inline: true }, { name: `${customEmojis.music} Música atual`, value: currentTrack ?? 'Não identificada pelo stream', inline: true }, { name: `${customEmojis.info} Último erro`, value: lastError.slice(0, 1024), inline: false }).setFooter({ text: footer }).setTimestamp()],
       allowedMentions: { parse: saved.allowEveryoneMention || saved.allowHereMention ? ['everyone' as const] : [], roles: saved.mentionRoleId ? [saved.mentionRoleId] : [] },
     };
     if (saved.liveStatusEnabled && saved.liveStatusMessageId && 'messages' in channel) {
