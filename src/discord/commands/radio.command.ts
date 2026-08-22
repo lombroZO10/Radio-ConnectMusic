@@ -131,9 +131,15 @@ export function createRadioCommand(
           throw error;
         }
         await interaction.editReply({
-          content: `Transmitindo em <#${channel.id}>.`,
+          content: `Estação selecionada: **${station.name}**\nTransmitindo em <#${channel.id}>.`,
           embeds: [stationEmbed(station)],
         });
+        if (configured.liveStatusEnabled) {
+          const cleanupTimer = setTimeout(() => {
+            void interaction.deleteReply().catch(() => undefined);
+          }, 30_000);
+          cleanupTimer.unref();
+        }
         return;
       }
 

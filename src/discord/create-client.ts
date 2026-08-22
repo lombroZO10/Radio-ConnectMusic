@@ -195,7 +195,7 @@ async function sendRadioAnnouncementNow(
           ? saved.notificationTemplates?.voiceRecovered
           : undefined;
     const [emoji, defaultTitle, defaultDescription, defaultColor] = event.type === 'playback-start'
-      ? [customEmojis.music, 'Transmissão iniciada', `A rádio está transmitindo **${stationName}**.`, 0x22c55e]
+      ? [customEmojis.music, event.changedFrom ? 'Estação alterada' : 'Transmissão iniciada', event.changedFrom ? `A estação foi alterada de **${event.changedFrom.name}** para **${stationName}**.` : `A rádio está transmitindo **${stationName}**.`, 0x22c55e]
       : event.type === 'fallback'
         ? [customEmojis.sparkle, 'Estação reserva acionada', `A rádio mudou automaticamente para **${stationName}**.`, 0xf59e0b]
         : event.type === 'voice-recovered'
@@ -252,6 +252,7 @@ function refreshLivePanels(
       channelId: status.channelId,
       status,
       isRecovery: false,
+      changedFrom: undefined,
     });
   }
 }

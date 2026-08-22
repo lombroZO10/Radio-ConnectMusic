@@ -19,7 +19,7 @@ import { createStationTranscoder } from './create-transcoder.js';
 
 type Logger = typeof rootLogger;
 export type RadioSessionEvent =
-  | { type: 'playback-start'; guildId: string; station: Station; channelId?: string | undefined; status?: RadioStatusSnapshot; isRecovery?: boolean }
+  | { type: 'playback-start'; guildId: string; station: Station; channelId?: string | undefined; status?: RadioStatusSnapshot; isRecovery?: boolean; changedFrom?: Station | undefined }
   | { type: 'fallback'; guildId: string; station: Station; channelId?: string | undefined; status?: RadioStatusSnapshot }
   | { type: 'voice-recovered'; guildId: string; station: Station; channelId?: string | undefined; status?: RadioStatusSnapshot }
   | { type: 'playback-stop'; guildId: string; station?: Station | undefined; channelId?: string | undefined; status?: RadioStatusSnapshot };
@@ -65,6 +65,7 @@ export class RadioSession {
   readonly #logger: Logger;
   readonly #player: AudioPlayer;
   readonly #onEvent: ((event: RadioSessionEvent) => void) | undefined;
+  #changedFrom: Station | undefined;
   #transcoder: prism.FFmpeg | undefined;
   #connection: VoiceConnection | undefined;
   #channel: VoiceBasedChannel | undefined;
@@ -109,7 +110,9 @@ export class RadioSession {
         'Transmissão iniciada',
       );
       if (this.#station) {
-        this.#onEvent?.({ type: 'playback-start', guildId, station: this.#station, channelId: this.#channelId, status: this.statusSnapshot(), isRecovery: this.#reconnectAttempts > 0 });
+        const changedFrom = this.#changedFrom;
+        this.#changedFrom = undefined;
+        this.#onEvent?.({ type: 'playback-start', guildId, station: this.#station, channelId: this.#channelId, status: this.statusSnapshot(), isRecovery: this.#reconnectAttempts > 0, changedFrom });
       }
     });
     this.#player.on(AudioPlayerStatus.Idle, () => {
@@ -162,6 +165,7 @@ export class RadioSession {
     fallbackStation?: Station,
   ): Promise<void> {
     const playbackGeneration = ++this.#playbackGeneration;
+    this.#changedFrom = this.#station && this.#station.id !== station.id ? this.#station : undefined;
     this.#station = station;
     this.#fallbackStation = fallbackStation;
     this.#fallbackActivated = false;
@@ -184,6 +188,7 @@ export class RadioSession {
     this.#station = undefined;
     this.#fallbackStation = undefined;
     this.#fallbackActivated = false;
+    this.#changedFrom = undefined;
     this.#playbackStartedAt = undefined;
     this.#reconnectAttempts = 0;
     this.#onEvent?.({ type: 'playback-stop', guildId: this.#guildIdValue, station: previousStation, channelId: previousChannelId, status: this.statusSnapshot() });
