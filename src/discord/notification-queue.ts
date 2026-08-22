@@ -45,6 +45,7 @@ export class NotificationQueue {
           await entry.task();
           this.#lastSent.set(scope, Date.now());
           this.#lastSent.set(`${scope}:${entry.key}`, Date.now());
+          setTimeout(() => this.#lastSent.delete(`${scope}:${entry.key}`), 15_000).unref();
         } catch {
           // A failed notification must never break the radio or the queue.
         }

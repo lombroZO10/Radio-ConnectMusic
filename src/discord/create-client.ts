@@ -55,6 +55,8 @@ export function createDiscordClient(
         process.exit(exitCode || 1);
       }, 10_000);
       try {
+        clearInterval(liveRefreshTimer);
+        notificationQueue.clear();
         radio.stopAll();
         await client.destroy();
       } finally {
