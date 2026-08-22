@@ -217,6 +217,102 @@
       "homepageUrl": "https://hunter.fm/tropical/",
       "logoUrl": "https://cdn.hunter.fm/image/thumb/station/tropical-third/400x400ht.jpg",
       "enabled": true
+    },
+    {
+      "id": "band-fm-sp",
+      "name": "Band FM São Paulo",
+      "description": "Música popular brasileira, sertanejo, pagode e os grandes sucessos do Brasil.",
+      "genres": ["Pop", "Sertanejo", "Música Brasileira", "Pagode"],
+      "country": "BR",
+      "language": "pt",
+      "streamUrl": "https://playerservices.streamtheworld.com/api/livestream-redirect/BANDFM_SPAAC.aac",
+      "homepageUrl": "https://www.band.uol.com.br/band-fm",
+      "logoUrl": "https://static.mytuner.mobi/media/tvos_radios/397/band-fm.6961dcbf.jpg",
+      "enabled": true
+    },
+    {
+      "id": "antena-1-sp",
+      "name": "Antena 1 São Paulo",
+      "description": "Adult contemporary com clássicos e música internacional de alta qualidade.",
+      "genres": ["Adulto Contemporâneo", "Pop Internacional", "Smooth Jazz"],
+      "country": "BR",
+      "language": "pt",
+      "streamUrl": "https://www.antena1.com.br/stream/stream/1",
+      "homepageUrl": "https://www.antena1.com.br/",
+      "logoUrl": "https://static.mytuner.mobi/media/tvos_radios/264/radio-antena-1-fm.2602cfac.jpg",
+      "enabled": true
+    },
+    {
+      "id": "alpha-fm-sp",
+      "name": "Alpha FM São Paulo",
+      "description": "Seleção sofisticada de pop, adult contemporary e clássicos internacionais.",
+      "genres": ["Adulto Contemporâneo", "Pop Internacional", "Clássicos"],
+      "country": "BR",
+      "language": "pt",
+      "streamUrl": "https://playerservices.streamtheworld.com/api/livestream-redirect/RADIO_ALPHAFM.mp3",
+      "homepageUrl": "https://alphafm.com.br/",
+      "logoUrl": "https://static.mytuner.mobi/media/tvos_radios/548/alpha-fm-sp.4172fa06.jpg",
+      "enabled": true
+    },
+    {
+      "id": "mix-fm-sp",
+      "name": "Mix FM São Paulo",
+      "description": "Pop, rock e os maiores hits internacionais em uma das redes mais conhecidas do Brasil.",
+      "genres": ["Pop", "Pop-Rock", "Hits Internacionais"],
+      "country": "BR",
+      "language": "pt",
+      "streamUrl": "https://playerservices.streamtheworld.com/api/livestream-redirect/MIXFM_SAOPAULO.mp3",
+      "homepageUrl": "https://www.mixfm.com.br/",
+      "logoUrl": "https://static.mytuner.mobi/media/tvos_radios/793/mix-fm-sao-paulo.73ddc0d4.png",
+      "enabled": true
+    },
+    {
+      "id": "radio-rock-89-sp",
+      "name": "89 FM - A Rádio Rock",
+      "description": "Rock nacional e internacional, clássicos, novidades e programas especiais.",
+      "genres": ["Rock", "Rock Alternativo", "Rock Nacional"],
+      "country": "BR",
+      "language": "pt",
+      "streamUrl": "https://playerservices.streamtheworld.com/api/livestream-redirect/RADIO_89FM_ADP.aac",
+      "homepageUrl": "https://www.radiorock.com.br/",
+      "logoUrl": "https://static.mytuner.mobi/media/tvos_radios/698/89-fm-a-radio-rock.a64f6d05.png",
+      "enabled": true
+    },
+    {
+      "id": "kiss-fm-sp",
+      "name": "Kiss FM São Paulo",
+      "description": "Rock clássico e os grandes nomes que marcaram a história da música.",
+      "genres": ["Rock Clássico", "Rock", "Blues Rock"],
+      "country": "BR",
+      "language": "pt",
+      "streamUrl": "https://playerservices.streamtheworld.com/api/livestream-redirect/RADIO_KISSFMAAC.aac",
+      "homepageUrl": "https://kissfm.com.br/",
+      "logoUrl": "https://static.mytuner.mobi/media/tvos_radios/846/kiss-fm-brazil.6df474de.png",
+      "enabled": true
+    },
+    {
+      "id": "nova-brasil-sp",
+      "name": "Nova Brasil FM São Paulo",
+      "description": "MPB, música brasileira contemporânea e grandes compositores nacionais.",
+      "genres": ["MPB", "Música Brasileira", "Pop Nacional"],
+      "country": "BR",
+      "language": "pt",
+      "streamUrl": "https://playerservices.streamtheworld.com/api/livestream-redirect/NOVABRASIL_SPAAC_SC",
+      "homepageUrl": "https://novabrasilfm.com.br/",
+      "logoUrl": "https://static.mytuner.mobi/media/tvos_radios/7f7e5fqddmwr.png",
+      "enabled": true
+    },
+    {
+      "id": "nativa-fm-sp",
+      "name": "Nativa FM São Paulo",
+      "description": "Sertanejo, música popular e os sucessos que fazem parte do Brasil.",
+      "genres": ["Sertanejo", "Música Brasileira", "Hits"],
+      "country": "BR",
+      "language": "pt",
+      "streamUrl": "https://playerservices.streamtheworld.com/api/livestream-redirect/NATIVA_SPAAC.aac",
+      "homepageUrl": "https://www.nativafm.com.br/",
+      "logoUrl": "https://static.mytuner.mobi/media/radios-150px/019/nativa-fm-sao-paulo.086e2cfa.jpg",
+      "enabled": true
     }
   ]
 }
