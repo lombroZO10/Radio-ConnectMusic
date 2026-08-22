@@ -173,6 +173,7 @@ async function updateBotPresence(
   radio: RadioManager,
   settings: GuildSettingsRepository,
 ): Promise<void> {
+  await Promise.resolve();
   const active = settings.list()
     .map((guildSettings) => radio.getStatus(guildSettings.guildId))
     .filter((status): status is NonNullable<typeof status> => Boolean(status?.station && status.audioStatus === AudioPlayerStatus.Playing));
@@ -181,13 +182,12 @@ async function updateBotPresence(
     client.user.setActivity(config.discord.activity, { type: ActivityType.Listening });
     return;
   }
-  const status = active[0];
-  if (!status) return;
-  const track = status.station ? await getCurrentTrack(status.station) : undefined;
-  const stationName = status.station?.name ?? 'Radio Connect Music 24/7';
+  const serverCount = client.guilds.cache.size;
+  const stationCount = config.stations.filter((station) => station.enabled).length;
   const activities = [
-    `📻 ${stationName}`,
-    `🎵 ${track ?? 'música ao vivo'}`,
+    '🎵 Música ao vivo',
+    `🌐 ${String(serverCount)} servidor${serverCount === 1 ? '' : 'es'} conectado${serverCount === 1 ? '' : 's'}`,
+    stationCount === 1 ? '📻 1 rádio disponível' : `📻 ${String(stationCount)} rádios disponíveis`,
     `🔊 ${String(active.length)} transmissão${active.length === 1 ? '' : 'ões'} ativa${active.length === 1 ? '' : 's'}`,
   ] as const;
   const activity = activities.at(presenceRotation % activities.length) ?? {
@@ -199,7 +199,6 @@ async function updateBotPresence(
   // proprietário. URLs de páginas de rádio podem ser aceitas pela API, mas
   // o cliente do Discord normalmente as renderiza apenas como presença comum.
   const streamingUrl = config.discord.streamingUrl
-    ?? status.station?.homepageUrl
     ?? config.branding.websiteUrl
     ?? 'https://www.twitch.tv/';
   client.user.setActivity(typeof activity === 'string' ? activity : activity.name, {
