@@ -164,7 +164,7 @@ async function sendRadioAnnouncementNow(
   const saved = settings.get(event.guildId);
   if (!saved?.announcementChannelId || (saved.quietMode && !saved.liveStatusEnabled)) return;
   const enabled = event.type === 'playback-start'
-    ? saved.announcePlayback
+    ? event.isRecovery ? saved.announceRecovery : saved.announcePlayback
     : event.type === 'fallback'
       ? saved.announceFallback
       : event.type === 'voice-recovered'

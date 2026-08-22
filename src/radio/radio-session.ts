@@ -19,7 +19,7 @@ import { createStationTranscoder } from './create-transcoder.js';
 
 type Logger = typeof rootLogger;
 export type RadioSessionEvent =
-  | { type: 'playback-start'; guildId: string; station: Station; channelId?: string | undefined; status?: RadioStatusSnapshot }
+  | { type: 'playback-start'; guildId: string; station: Station; channelId?: string | undefined; status?: RadioStatusSnapshot; isRecovery?: boolean }
   | { type: 'fallback'; guildId: string; station: Station; channelId?: string | undefined; status?: RadioStatusSnapshot }
   | { type: 'voice-recovered'; guildId: string; station: Station; channelId?: string | undefined; status?: RadioStatusSnapshot }
   | { type: 'playback-stop'; guildId: string; station?: Station | undefined; channelId?: string | undefined; status?: RadioStatusSnapshot };
@@ -108,8 +108,8 @@ export class RadioSession {
         { stationId: this.#station?.id, recoveryAttempt: this.#reconnectAttempts },
         'Transmissão iniciada',
       );
-      if (this.#station && this.#reconnectAttempts === 0) {
-        this.#onEvent?.({ type: 'playback-start', guildId, station: this.#station, channelId: this.#channelId, status: this.statusSnapshot() });
+      if (this.#station) {
+        this.#onEvent?.({ type: 'playback-start', guildId, station: this.#station, channelId: this.#channelId, status: this.statusSnapshot(), isRecovery: this.#reconnectAttempts > 0 });
       }
     });
     this.#player.on(AudioPlayerStatus.Idle, () => {
